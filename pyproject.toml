@@ -29,7 +29,7 @@ dev = [
 ]
 
 [project.scripts]
-mirrorneuron-prism = "litellm_multicall.cli:main"
+mn_prism = "litellm_multicall.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/litellm_multicall"]
