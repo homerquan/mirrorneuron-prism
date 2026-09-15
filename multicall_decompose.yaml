@@ -1,0 +1,39 @@
+schema_version: 1
+runtime:
+  backend: proxy_router
+  max_inflight_children_per_worker: 4
+  child_cache: disabled
+
+policies:
+  default:
+    strategy: decompose_map_reduce
+    allowed_model_groups: [small-llm, large-llm]
+    decompose:
+      planner_model: large-llm
+      executor_model: small-llm
+      min_subjobs: 3
+      max_subjobs: 5
+      decomposition_prompt: decompose_prompt
+    execution:
+      concurrency: 2
+      max_retries: 1
+    combine:
+      model: large-llm
+      prompt: combine_prompt
+    budgets:
+      max_model_calls: 7
+      max_backend_attempts: 7
+      max_total_tokens: 20000
+      deadline_ms: 180000
+    on_unresolved: error
+
+prompt_variants:
+  decompose_prompt: |
+    You are a planning assistant. Given a user task, decompose it into 3-5 independent sub-jobs that can be solved in parallel by a small model.
+    Return a JSON list of sub-jobs with clear instructions. Do not solve them, only decompose.
+    Task: {task}
+  combine_prompt: |
+    You are a synthesis assistant. Combine the results of the sub-jobs into a single coherent answer.
+    Sub-jobs results:
+    {results}
+    Original task: {task}

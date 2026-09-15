@@ -28,6 +28,9 @@ dev = [
   "openai",
 ]
 
+[project.entry-points."litellm_provider"]
+multicall = "litellm_multicall.provider:multicall_provider"
+
 [project.scripts]
 mn_prism = "litellm_multicall.cli:main"
 
