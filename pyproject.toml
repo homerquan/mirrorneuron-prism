@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mirrorneuron-prism"
+version = "0.1.0"
+description = "Bounded multi-call inference as a LiteLLM Proxy extension"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "litellm>=1,<2",
+  "pydantic>=2,<3",
+  "PyYAML>=6,<7",
+  "jsonschema>=4,<5",
+]
+
+[project.optional-dependencies]
+proxy = ["litellm[proxy]>=1,<2"]
+dev = [
+  "build",
+  "twine",
+  "pytest",
+  "pytest-asyncio",
+  "ruff",
+  "mypy",
+  "httpx",
+  "openai",
+]
+
+[project.scripts]
+mirrorneuron-prism = "litellm_multicall.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/litellm_multicall"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
