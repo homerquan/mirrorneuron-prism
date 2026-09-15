@@ -10,7 +10,7 @@ Transform any OpenAI-compatible client call into several bounded LLM calls, sele
 ## Features
 
 - **Transparent** – drop-in OpenAI compatible proxy, no SDK changes
-- **Best-of-N / Adaptive / Consensus** strategies
+- **Strategies** – Best-of-N, Adaptive, Consensus. More strategies coming.
 - **Budgeting & deadlines** – token, call and time limits per logical request
 - **LLM Judge & Verifiers** – pluggable selection with safety checks
 - **Metering & cost estimation** – per-model usage tracking offline
@@ -22,8 +22,43 @@ Transform any OpenAI-compatible client call into several bounded LLM calls, sele
 # install
 pip install "mirrorneuron-prism[proxy]"
 
-# validate
+# validate configs
 mn_prism validate --policy-config multicall.yaml --litellm-config litellm.yaml
+```
+
+### Quick demo proxy
+
+Run a local OpenAI-compatible proxy from a JSON model registry:
+
+```bash
+mn_prism serve --file models/muse-gemma-mix.json --port 4001 --host 0.0.0.0
+```
+
+Then test with curl:
+```bash
+curl http://localhost:4001/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-test" \
+  -d '{"model":"muse-glimmer-30b","messages":[{"role":"user","content":"Hi"}]}'
+```
+
+### Full LiteLLM Proxy with MultiCall
+
+If you already run LiteLLM Proxy, just add the custom provider:
+
+`litellm.yaml`
+```yaml
+model_list:
+  - model_name: smart-local
+    litellm_params:
+      model: multicall/default
+
+litellm_settings:
+  custom_provider_map:
+    - provider: multicall
+      custom_handler: litellm_multicall.provider.multicall_provider
+  callbacks:
+    - litellm_multicall.hooks.multicall_hooks
 ```
 
 Client code stays unchanged:
@@ -36,6 +71,23 @@ resp = client.chat.completions.create(
     messages=[{"role":"user","content":"Explain DAGs"}]
 )
 print(resp.choices[0].message.content)
+```
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url="http://localhost:4000/v1", api_key="sk-test")
+resp = client.chat.completions.create(
+    model="smart-local",
+    messages=[{"role":"user","content":"Explain DAGs"}]
+)
+print(resp.choices[0].message.content)
+```
+
+```bash
+curl http://localhost:4000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-test" \
+  -d '{"model":"smart-local","messages":[{"role":"user","content":"Explain DAGs"}],"temperature":0.7}'
 ```
 
 ## Installation

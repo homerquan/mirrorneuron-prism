@@ -1,1 +1,14 @@
 # Example LiteLLM config
+model_list:
+  - model_name: smart-local
+    litellm_params:
+      model: multicall/default
+      num_retries: 0
+
+litellm_settings:
+  custom_provider_map:
+    - provider: multicall
+      custom_handler: litellm_multicall.provider.multicall_provider
+  callbacks:
+    - litellm_multicall.hooks.multicall_hooks
+

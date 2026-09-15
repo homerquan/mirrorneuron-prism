@@ -1,1 +1,25 @@
-# Example multicall config
+# Example MultiCall policy
+schema_version: 1
+runtime:
+  backend: proxy_router
+  integration_profile: trusted_local
+
+policies:
+  default:
+    strategy: best_of_n
+    allowed_model_groups: [local-small]
+    candidates:
+      - model: local-small
+        samples: 4
+        temperature: 0.7
+        max_completion_tokens: 1500
+    selection:
+      type: llm_judge
+      model: local-small
+      max_completion_tokens: 160
+      temperature: 0
+    budgets:
+      max_model_calls: 5
+      max_total_tokens: 16000
+      deadline_ms: 120000
+
