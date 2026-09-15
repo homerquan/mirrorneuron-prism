@@ -1,6 +1,6 @@
-# How to Use mirrorneuron-prism
+# How to Use mn_prism
 
-mirrorneuron-prism is a **transparent** LiteLLM Proxy extension. From the client point of view you call a normal OpenAI-compatible endpoint. The multi-call expansion, selection, budgeting and aggregation happen inside the proxy.
+`mn_prism` is a **transparent** LiteLLM Proxy extension. From the client point of view you call a normal OpenAI-compatible endpoint. The multi-call expansion, selection, budgeting and aggregation happen inside the proxy.
 
 ## Client view – nothing changes
 
@@ -109,8 +109,8 @@ All patterns are expressed declaratively in `multicall.yaml`. The proxy remains 
 Validate configs without making model calls:
 
 ```bash
-mirrorneuron-prism validate --policy-config multicall.yaml --litellm-config litellm.yaml
-mirrorneuron-prism doctor --policy-config multicall.yaml --litellm-config litellm.yaml
+mn_prism validate --policy-config multicall.yaml --litellm-config litellm.yaml
+mn_prism doctor --policy-config multicall.yaml --litellm-config litellm.yaml
 ```
 
 ## Metering & cost estimate

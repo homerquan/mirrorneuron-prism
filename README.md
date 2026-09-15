@@ -22,8 +22,8 @@ Transform any OpenAI-compatible client call into several bounded LLM calls, sele
 # install
 pip install "mirrorneuron-prism[proxy]"
 
-# validate configs
-mirrorneuron-prism validate --policy-config multicall.yaml --litellm-config litellm.yaml
+# validate
+mn_prism validate --policy-config multicall.yaml --litellm-config litellm.yaml
 ```
 
 Client code stays unchanged:

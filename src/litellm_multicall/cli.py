@@ -71,7 +71,7 @@ def main():
             v = version("mirrorneuron-prism")
         except Exception:
             v = "0.1.0"
-        print(f"mirrorneuron-prism {v}")
+        print(f"mn_prism {v}")
         return
     
     if not args.command:
@@ -79,7 +79,7 @@ def main():
             v = version("mirrorneuron-prism")
         except Exception:
             v = "0.1.0"
-        print(f"mirrorneuron-prism {v}")
+        print(f"mn_prism {v}")
         return
 
     if args.command == "serve":
