@@ -8,6 +8,7 @@ meter.record("local-strong", prompt_tokens=200, completion_tokens=150)
 agg = meter.aggregate()
 print(agg)
 estimates = get_price_estimate(meter)
-# Format dollars, show $0.00 for tiny values
-formatted = {k: f"${v:.6f}" if v >= 0.000001 else "$0.00" for k, v in estimates.items()}
+# Pricing is not wired yet (Step 01 baseline): estimates are unknown (None),
+# never silent zeros. Format accordingly.
+formatted = {k: (f"${v:.6f}" if v is not None else "unknown") for k, v in estimates.items()}
 print(formatted)

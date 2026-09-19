@@ -1,8 +1,25 @@
 import json
+import socket
 import urllib.request
+from urllib.parse import urlparse
 import pytest
 
 MODEL_URL = "http://10.0.4.32:8000/v1/chat/completions"
+
+
+def _require_backends():
+    # Manual live-endpoint smoke test only: skip (do not fail) when the
+    # configured backend is unreachable so the default offline gate stays
+    # green. This test exercises a raw backend, not Prism expansion logic.
+    try:
+        parts = urlparse(MODEL_URL)
+        with socket.create_connection(
+            (parts.hostname, parts.port or 80), timeout=2.0
+        ):
+            return
+    except OSError:
+        pass
+    pytest.skip(f"live backend unreachable: {MODEL_URL}")
 
 def post_json(payload):
     data = json.dumps(payload).encode()
@@ -20,6 +37,7 @@ def extract_content(body):
 
 @pytest.mark.integration
 def test_decompose_big_task_into_small_calls():
+    _require_backends()
     # Big task
     big_task = "Explain DAGs, give a concrete example, and list three real-world use cases."
     
