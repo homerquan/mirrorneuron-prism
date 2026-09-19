@@ -1,5 +1,5 @@
 import pytest
-from src_litellm_multicall_budgets import BudgetTracker
+from litellm_multicall.budgets import BudgetTracker
 
 def test_budget_tracker_reserves():
     bt = BudgetTracker(max_model_calls=2)

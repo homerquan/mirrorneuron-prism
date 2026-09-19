@@ -1,27 +1,26 @@
 from litellm import CustomLLM
-from litellm.types import ModelResponse, ChatCompletionResponseMessage
+
 
 class MulticallProvider(CustomLLM):
     model_name: str = "multicall"
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-    
-    async def acomplete(self, model, messages, **kwargs):
-        # Minimal stub that returns a dummy response so the proxy can start
-        return ModelResponse(
-            choices=[{
-                "message": ChatCompletionResponseMessage(role="assistant", content="stub response"),
-                "finish_reason": "stop",
-                "index": 0
-            }],
-            created=0,
-            model=model,
-            usage=None
-        )
-    
-    async def astreaming(self, model, messages, **kwargs):
-        # Streaming stub
-        return self.acomplete(model, messages, **kwargs)
 
-multicall_provider = MulticallProvider
+    def __init__(self) -> None:
+        super().__init__()
+
+    async def acompletion(self, model, messages, **kwargs):
+        # Step 01 baseline: fail closed until the engine is implemented.
+        raise NotImplementedError("MulticallProvider.acompletion is not implemented yet")
+
+    async def astreaming(self, model, messages, **kwargs):
+        # Step 01 baseline: fail closed until streaming is implemented.
+        raise NotImplementedError("MulticallProvider.astreaming is not implemented yet")
+
+    def completion(self, model, messages, **kwargs):
+        raise NotImplementedError("MulticallProvider.completion is not implemented yet")
+
+    def streaming(self, model, messages, **kwargs):
+        raise NotImplementedError("MulticallProvider.streaming is not implemented yet")
+
+
+multicall_provider = MulticallProvider()
 

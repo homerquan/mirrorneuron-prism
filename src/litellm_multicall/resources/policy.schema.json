@@ -1,1 +1,397 @@
-{}
+{
+  "$defs": {
+    "AdaptiveOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "initial_samples": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Initial Samples",
+          "type": "integer"
+        },
+        "expansion_batches": {
+          "items": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "minItems": 1,
+          "title": "Expansion Batches",
+          "type": "array"
+        },
+        "early_stop": {
+          "const": "semantic_verifier_pass",
+          "default": "semantic_verifier_pass",
+          "title": "Early Stop",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expansion_batches"
+      ],
+      "title": "AdaptiveOptions",
+      "type": "object"
+    },
+    "ApiSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "unsupported": {
+          "default": "reject",
+          "enum": [
+            "reject",
+            "passthrough"
+          ],
+          "title": "Unsupported",
+          "type": "string"
+        },
+        "passthrough_model": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Passthrough Model"
+        }
+      },
+      "title": "ApiSpec",
+      "type": "object"
+    },
+    "BudgetSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "max_model_calls": {
+          "minimum": 1,
+          "title": "Max Model Calls",
+          "type": "integer"
+        },
+        "max_backend_attempts": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Backend Attempts"
+        },
+        "max_total_tokens": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Total Tokens"
+        },
+        "deadline_ms": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Deadline Ms"
+        },
+        "child_timeout_ms": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Child Timeout Ms"
+        }
+      },
+      "required": [
+        "max_model_calls"
+      ],
+      "title": "BudgetSpec",
+      "type": "object"
+    },
+    "CandidateSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "samples": {
+          "default": 4,
+          "minimum": 1,
+          "title": "Samples",
+          "type": "integer"
+        },
+        "temperature": {
+          "default": 0.7,
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "max_completion_tokens": {
+          "minimum": 1,
+          "title": "Max Completion Tokens",
+          "type": "integer"
+        },
+        "prompt_variants": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Prompt Variants",
+          "type": "array"
+        }
+      },
+      "required": [
+        "model",
+        "max_completion_tokens"
+      ],
+      "title": "CandidateSpec",
+      "type": "object"
+    },
+    "FallbackSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "max_completion_tokens": {
+          "minimum": 1,
+          "title": "Max Completion Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "model",
+        "max_completion_tokens"
+      ],
+      "title": "FallbackSpec",
+      "type": "object"
+    },
+    "PolicySpec": {
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "enum": [
+            "best_of_n",
+            "adaptive"
+          ],
+          "title": "Strategy",
+          "type": "string"
+        },
+        "allowed_model_groups": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Allowed Model Groups",
+          "type": "array"
+        },
+        "privacy": {
+          "const": "local_only",
+          "default": "local_only",
+          "title": "Privacy",
+          "type": "string"
+        },
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/CandidateSpec"
+          },
+          "minItems": 1,
+          "title": "Candidates",
+          "type": "array"
+        },
+        "selection": {
+          "$ref": "#/$defs/SelectionSpec"
+        },
+        "budgets": {
+          "$ref": "#/$defs/BudgetSpec"
+        },
+        "adaptive": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AdaptiveOptions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "fallback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FallbackSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "on_unresolved": {
+          "default": "error",
+          "enum": [
+            "error",
+            "fallback"
+          ],
+          "title": "On Unresolved",
+          "type": "string"
+        },
+        "api": {
+          "$ref": "#/$defs/ApiSpec"
+        }
+      },
+      "required": [
+        "strategy",
+        "allowed_model_groups",
+        "candidates",
+        "selection",
+        "budgets"
+      ],
+      "title": "PolicySpec",
+      "type": "object"
+    },
+    "RuntimeConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "backend": {
+          "const": "proxy_router",
+          "default": "proxy_router",
+          "title": "Backend",
+          "type": "string"
+        },
+        "integration_profile": {
+          "const": "trusted_local",
+          "default": "trusted_local",
+          "title": "Integration Profile",
+          "type": "string"
+        },
+        "max_inflight_children_per_worker": {
+          "default": 4,
+          "minimum": 1,
+          "title": "Max Inflight Children Per Worker",
+          "type": "integer"
+        },
+        "max_inflight_children_per_request": {
+          "default": 2,
+          "minimum": 1,
+          "title": "Max Inflight Children Per Request",
+          "type": "integer"
+        },
+        "child_cache": {
+          "const": "disabled",
+          "default": "disabled",
+          "title": "Child Cache",
+          "type": "string"
+        },
+        "outer_cache": {
+          "const": "disabled",
+          "default": "disabled",
+          "title": "Outer Cache",
+          "type": "string"
+        },
+        "log_content": {
+          "default": false,
+          "title": "Log Content",
+          "type": "boolean"
+        }
+      },
+      "title": "RuntimeConfig",
+      "type": "object"
+    },
+    "SelectionSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "llm_judge",
+          "default": "llm_judge",
+          "title": "Type",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "max_completion_tokens": {
+          "default": 160,
+          "minimum": 1,
+          "title": "Max Completion Tokens",
+          "type": "integer"
+        },
+        "temperature": {
+          "default": 0,
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "allow_abstain": {
+          "default": true,
+          "title": "Allow Abstain",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "SelectionSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Root of multicall.yaml. ``schema_version`` is strictly integer 1.",
+  "properties": {
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "runtime": {
+      "$ref": "#/$defs/RuntimeConfig"
+    },
+    "policies": {
+      "additionalProperties": {
+        "$ref": "#/$defs/PolicySpec"
+      },
+      "minProperties": 1,
+      "title": "Policies",
+      "type": "object"
+    },
+    "prompt_variants": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Prompt Variants",
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "policies"
+  ],
+  "title": "MirrorNeuron Prism policy config",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
