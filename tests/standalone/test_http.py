@@ -15,6 +15,8 @@ from openai import OpenAI
 from prism.api import create_app
 from prism.config import PrismConfig, RawModel
 
+from .decision_stub import RulesAgent
+
 
 @contextmanager
 def serve(app):
@@ -84,7 +86,9 @@ def test_sdk_over_real_http(monkeypatch):
     with serve(upstream) as upstream_url:
         model = RawModel(id="physical", name="physical", base_url=upstream_url + "/v1")
         config = PrismConfig(profiles={"prism": {"direct": "physical"}})
-        app = create_app(config, models={"physical": model})
+        app = create_app(
+            config, models={"physical": model}, decision_agent=RulesAgent()
+        )
         with (
             serve(app) as prism_url,
             OpenAI(

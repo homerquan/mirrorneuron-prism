@@ -1,1 +1,0 @@
-# mirrorneuron-prism package

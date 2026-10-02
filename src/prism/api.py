@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from .backends import OpenAIBackend
 from .config import load_config
 from .contracts import parse_json, validate_request
-from .decision import ShadowDecision
+from .decision import LayaDecision
 from .engine import ExecutionEngine
 from .errors import PrismError
 from .telemetry import TraceStore
@@ -51,7 +51,7 @@ def create_app(config, *, models=None, backend=None, decision_agent=None):
     if models is None:
         config, models = load_config(config)
     transport = backend or OpenAIBackend(models)
-    decision = ShadowDecision(config.decision, decision_agent)
+    decision = LayaDecision(config.decision, decision_agent)
     engine = ExecutionEngine(config, models, transport, decision)
     traces = TraceStore(config.server.trace_capacity, config.server.trace_ttl_seconds)
     admitted = 0
@@ -155,9 +155,14 @@ def create_app(config, *, models=None, backend=None, decision_agent=None):
                 raise PrismError("malformed JSON request", "invalid_json") from exc
             execution = engine.prepare(body)
             request.state.request_id = execution["trace"]["request_id"]
+            await connected(request, engine.select_policy(execution))
             headers = {
                 "x-request-id": request.state.request_id,
                 "x-prism-accounting": "prism-utf8-v1",
+                "x-prism-policy": execution["strategy"],
+                "x-prism-coverage": "focused"
+                if execution["strategy"] == "retrieve_read"
+                else "full",
             }
             if body.get("stream"):
                 buffered = (

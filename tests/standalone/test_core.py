@@ -3,15 +3,36 @@ import json
 import os
 import subprocess
 import sys
+import tomllib
+from pathlib import Path
 
 import pytest
 
 from prism.cli import main
 from prism.config import DecisionConfig, Limits, RawModel, load_config
 from prism.context import SourceArena, SourceRef
-from prism.decision import ShadowDecision
+from prism.decision import LayaDecision
 from prism.errors import PrismError
 from prism.runtime import Ledger, Plan, PlanNode
+
+
+def test_distribution_ships_only_the_standalone_package():
+    project = tomllib.loads(
+        (Path(__file__).resolve().parents[2] / "pyproject.toml").read_text()
+    )
+    metadata = project["project"]
+    assert set(metadata["optional-dependencies"]) == {"dev"}
+    assert "laya>=0.3.23,<0.4" in metadata["dependencies"]
+    assert metadata["scripts"] == {"prism": "prism.cli:main"}
+    assert "entry-points" not in metadata
+    assert metadata["license-files"] == ["LICENSE"]
+    assert project["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == [
+        "src/prism"
+    ]
+    assert not any(
+        "litellm" in dependency.lower() or "pyyaml" in dependency.lower()
+        for dependency in metadata["dependencies"]
+    )
 
 
 def test_init_json_validate_existing_registry_and_lightweight_help(tmp_path, capsys):
@@ -129,16 +150,16 @@ async def test_laya_api_shadow_only_and_question_shape():
             }
 
     arena = SourceArena([{"role": "user", "content": "hi"}])
-    result = await ShadowDecision(DecisionConfig(mode="shadow"), Agent()).propose(
+    result = await LayaDecision(DecisionConfig(mode="shadow"), Agent()).propose(
         arena, "direct"
     )
     assert result["proposal"] == "evidence_map"
     assert result["disposition"] == "abstain"
-    assert result["reason"] == "no_validated_execution_gate"
+    assert result["reason"] == "shadow_mode"
 
 
 def test_resident_decision_process_and_cancellation_without_reload(tmp_path):
-    # Stub only the optional model, exercising the actual spawn/pipe/kill lifecycle.
+    # Stub only the checkpoint, exercising the actual spawn/pipe/kill lifecycle.
     (tmp_path / "laya.py").write_text("""
 import time
 class Agent:
@@ -153,9 +174,9 @@ def load(*args, **kwargs):
 import asyncio
 from prism.config import DecisionConfig
 from prism.context import SourceArena
-from prism.decision import ShadowDecision
+from prism.decision import LayaDecision
 async def run():
-    decision = ShadowDecision(DecisionConfig(mode="shadow"))
+    decision = LayaDecision(DecisionConfig(mode="shadow"))
     decision.prepare()
     assert decision.process.is_alive()
     result = await decision.propose(SourceArena([{"role":"user","content":"hi"}]), "direct")

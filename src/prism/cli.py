@@ -1,4 +1,4 @@
-"""Small standalone CLI. Importing help never imports Torch or LiteLLM."""
+"""Small standalone CLI. Importing help never imports ML runtimes."""
 
 import argparse
 import asyncio
@@ -19,6 +19,7 @@ def parser():
     )
     root.add_argument("--version", action="version", version=f"prism {__version__}")
     commands = root.add_subparsers(dest="command", required=True)
+    commands.add_parser("policies", help="list executable routing policies")
     init = commands.add_parser("init", help="create JSON config and raw model registry")
     init.add_argument("--out-dir", type=Path, default=Path("."))
     for name in ("serve", "validate", "doctor"):
@@ -51,6 +52,47 @@ def parser():
         "compare", help="summarize a paired evaluation JSONL"
     )
     compare.add_argument("run", type=Path)
+    benchmark = commands.add_parser(
+        "benchmark", help="speed, reference quality, and cost benchmarks"
+    )
+    benchmark_commands = benchmark.add_subparsers(
+        dest="benchmark_command", required=True
+    )
+    bench_run = benchmark_commands.add_parser(
+        "run", help="save a paired benchmark in a new run folder"
+    )
+    bench_run.add_argument(
+        "--cases",
+        type=Path,
+        help="JSONL cases; defaults to the packaged reference suite",
+    )
+    bench_run.add_argument(
+        "--config",
+        type=Path,
+        help="JSON config for a redacted settings/pricing snapshot",
+    )
+    bench_run.add_argument("--baseline", default="prism-direct")
+    bench_run.add_argument("--candidate", default="prism-evidence")
+    bench_run.add_argument("--base-url", default="http://127.0.0.1:8080/v1")
+    bench_run.add_argument("--api-key-env", default="PRISM_API_KEY")
+    bench_run.add_argument("--repeats", type=int, default=3)
+    bench_run.add_argument("--warmup", type=int, default=1)
+    bench_run.add_argument("--output-tokens", type=int, default=2048)
+    bench_run.add_argument("--temperature", type=float, default=0.0)
+    bench_run.add_argument("--timeout", type=float, default=180.0)
+    bench_run.add_argument("--max-cases", type=int)
+    bench_run.add_argument(
+        "--out-dir",
+        type=Path,
+        help="new run folder; defaults to benchmark-results/<run-id>",
+    )
+    bench_compare = benchmark_commands.add_parser(
+        "compare", help="compare saved run folders without calling models"
+    )
+    bench_compare.add_argument("runs", type=Path, nargs="+")
+    bench_compare.add_argument(
+        "--out-dir", type=Path, help="save comparison JSON and Markdown in a new folder"
+    )
     return root
 
 
@@ -90,7 +132,7 @@ async def doctor(config, models, probe):
             result["models"].append(item)
     result["ready"] = (
         result["authentication_ready"]
-        and (config.decision.mode == "off" or result["laya_version"] is not None)
+        and result["laya_version"] is not None
         and (all(m.get("ready", False) for m in result["models"]) if probe else False)
     )
     return result
@@ -99,6 +141,26 @@ async def doctor(config, models, probe):
 def main(argv=None):
     args = parser().parse_args(argv)
     try:
+        if args.command == "policies":
+            from .policies import POLICIES
+
+            emit(
+                {
+                    "policies": [
+                        {
+                            "id": name,
+                            "description": description,
+                            "coverage": "focused"
+                            if name == "retrieve_read"
+                            else "full",
+                        }
+                        for name, description in POLICIES.items()
+                    ],
+                    "decision_mode": "route",
+                    "laya_required": True,
+                }
+            )
+            return 0
         if args.command == "init":
             paths = [args.out_dir / name for name in ("prism.json", "models.json")]
             if any(path.exists() for path in paths):
@@ -162,6 +224,47 @@ def main(argv=None):
                 )
             emit(response.json())
             return 0
+        if args.command == "benchmark":
+            from .benchmark import compare, run
+
+            if args.benchmark_command == "compare":
+                emit(compare(args.runs, args.out_dir))
+                return 0
+            key = os.environ.get(args.api_key_env)
+            if not key:
+                raise PrismError("Prism API key environment variable is unset")
+
+            def progress(record):
+                phase = "warmup" if record["warmup"] else "measured"
+                print(
+                    f"{phase} {record['case_id']} {record['route']}: "
+                    f"{record['latency_ms']:.0f} ms, quality={record['quality']['score']:.2f}, "
+                    f"{record['error_code'] or 'complete'}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+
+            emit(
+                asyncio.run(
+                    run(
+                        api_key=key,
+                        baseline=args.baseline,
+                        candidate=args.candidate,
+                        base_url=args.base_url,
+                        cases_path=args.cases,
+                        config_path=args.config,
+                        out_dir=args.out_dir,
+                        repeats=args.repeats,
+                        warmup=args.warmup,
+                        output_tokens=args.output_tokens,
+                        temperature=args.temperature,
+                        timeout=args.timeout,
+                        max_cases=args.max_cases,
+                        progress=progress,
+                    )
+                )
+            )
+            return 0
         from .evaluation import evaluate, read_jsonl, summarize
 
         if args.eval_command == "compare":
@@ -194,7 +297,7 @@ def main(argv=None):
             {
                 "error": {
                     "code": "configuration_or_dependency_error",
-                    "message": "invalid/missing configuration or dependency; check the JSON config and installation extras",
+                    "message": "invalid/missing configuration or dependency; check the JSON config and installed dependencies",
                 }
             }
         )

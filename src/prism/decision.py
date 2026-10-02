@@ -1,27 +1,28 @@
-"""Local Laya proposals stay isolated from execution authority."""
+"""Required resident Laya routing over runtime-validated policy choices."""
 
 import asyncio
 import hashlib
 import json
+import math
 import multiprocessing
 import time
 
 from .contracts import byte_tokens
+from .policies import POLICIES
 
 QUESTIONS = {
     "strategy": {
         "type": "choice",
-        "instructions": "Which execution strategy fits this request?",
+        "instructions": "Choose the cheapest adequate policy for this task from the eligible policies. Use verification for disputed interpretations, batching for short documents, and retrieval only for focused lookup.",
         "criteria": {
-            "direct": "Answer a small self-contained request using one model call",
-            "evidence_map": "Read explicit large sources in partitions and synthesize source-backed evidence",
+            **POLICIES,
             "abstain": "Unknown task, exact aggregation, or insufficient context to choose safely",
         },
     }
 }
 
 
-class ShadowDecision:
+class LayaDecision:
     def __init__(self, config, agent=None):
         self.config = config
         self.agent = agent
@@ -31,7 +32,7 @@ class ShadowDecision:
 
     def prepare(self):
         """Explicit startup preparation; never load/download a model on a request."""
-        if self.config.mode == "shadow" and self.agent is None:
+        if self.agent is None:
             from .decision_worker import serve
 
             context = multiprocessing.get_context("spawn")
@@ -45,7 +46,7 @@ class ShadowDecision:
             try:
                 if not parent.poll(300) or not parent.recv().get("ready"):
                     raise ValueError(
-                        "Laya preparation failed; verify the optional package and checkpoint"
+                        "Laya preparation failed; verify the installed package and checkpoint"
                     )
             except BaseException:
                 self.close()
@@ -65,16 +66,16 @@ class ShadowDecision:
             self.connection.close()
             self.connection = None
 
-    async def _predict(self, state):
+    async def _predict(self, state, questions):
         if self.agent is not None:  # Injection for tests and embedded applications.
             return await asyncio.to_thread(
                 self.agent.system_one,
                 state,
-                QUESTIONS,
+                questions,
                 max_len=self.config.max_len,
                 head_max_len=256,
             )
-        self.connection.send({"state": state, "questions": QUESTIONS})
+        self.connection.send({"state": state, "questions": questions})
         while not await asyncio.to_thread(self.connection.poll, 0.05):
             if not self.process.is_alive():
                 raise RuntimeError("decision worker exited")
@@ -83,12 +84,18 @@ class ShadowDecision:
             raise RuntimeError("decision unavailable")
         return message["result"]
 
-    async def propose(self, arena, selected_strategy):
-        if self.config.mode == "off":
-            return {"mode": "off", "disposition": "abstain"}
+    async def propose(self, arena, selected_strategy, eligible=None, features=None):
+        eligible = list(POLICIES) if eligible is None else eligible
+        if len(eligible) == 1:
+            return {
+                "mode": self.config.mode,
+                "disposition": "rules_only",
+                "reason": "single_eligible_policy",
+                "proposal": eligible[0],
+            }
         if self.agent is None and self.process is None:
             return {
-                "mode": "shadow",
+                "mode": self.config.mode,
                 "disposition": "abstain",
                 "reason": "model_not_prepared",
             }
@@ -96,48 +103,95 @@ class ShadowDecision:
         text = json.dumps(arena.instructions, ensure_ascii=False)
         raw = text.encode("utf-8")
         half = self.config.max_state_bytes // 2
+        sample = (
+            text
+            if len(raw) <= self.config.max_state_bytes
+            else raw[:half].decode("utf-8", errors="ignore")
+            + "\n...\n"
+            + raw[-half:].decode("utf-8", errors="ignore")
+        )
         state = {
-            "instruction_sample": (
-                raw[:half].decode("utf-8", errors="ignore")
-                + "\n...\n"
-                + raw[-half:].decode("utf-8", errors="ignore")
-            ),
+            "instruction_sample": sample,
             "source_bytes": sum(r.byte_end - r.byte_start for r in arena.documents),
             "source_count": len(arena.documents),
             "rules_strategy": selected_strategy,
+            "eligible_policies": eligible,
+            **(features or {}),
+        }
+        questions = {
+            "strategy": {
+                **QUESTIONS["strategy"],
+                "criteria": {
+                    key: value
+                    for key, value in QUESTIONS["strategy"]["criteria"].items()
+                    if key in eligible or key == "abstain"
+                },
+            }
         }
         started = time.monotonic()
         try:
             async with self.lock:
                 try:
-                    result = await self._predict(state)
+                    result = await self._predict(state, questions)
                 except asyncio.CancelledError:
                     # Kill/reap the resident worker; no request-time reload/download.
-                    # Later shadow requests abstain until explicit service restart.
+                    # Later decisions abstain until explicit service restart.
                     self.close()
                     raise
             answer = result["answers"]["strategy"]
             choice = answer.get("choice")
-            if choice not in QUESTIONS["strategy"]["criteria"]:
+            if choice not in questions["strategy"]["criteria"]:
                 raise ValueError("invalid decision")
+            confidence = answer.get("answer_confidence")
+            usable = (
+                type(confidence) in {int, float}
+                and math.isfinite(confidence)
+                and 0 <= confidence <= 1
+            )
+            truncated = result.get("usage", {}).get("truncated", False)
+            accepted = (
+                self.config.mode == "route"
+                and choice in eligible
+                and usable
+                and confidence >= self.config.min_option_confidence
+                and not truncated
+            )
+            reason = (
+                "shadow_mode"
+                if self.config.mode == "shadow"
+                else "model_abstained"
+                if choice == "abstain"
+                else "decision_input_truncated"
+                if truncated
+                else "low_or_missing_option_confidence"
+                if not accepted
+                else "validated_policy_choice"
+            )
+            entropy_confidence = answer.get("confidence")
+            if type(entropy_confidence) not in {int, float} or not math.isfinite(
+                entropy_confidence
+            ):
+                entropy_confidence = None
             return {
-                "mode": "shadow",
-                "disposition": "abstain",
-                "reason": "no_validated_execution_gate",
+                "mode": self.config.mode,
+                "disposition": "accept" if accepted else "abstain",
+                "reason": reason,
                 "proposal": choice,
-                "confidence": answer.get("confidence"),
+                "confidence": entropy_confidence,
+                "answer_confidence": confidence if usable else None,
+                "quality_calibrated": False,
                 "usage": result.get("usage"),
                 "model": self.config.model,
                 "revision": self.config.revision,
                 "question_sha256": hashlib.sha256(
-                    json.dumps(QUESTIONS, sort_keys=True).encode()
+                    json.dumps(questions, sort_keys=True).encode()
                 ).hexdigest(),
                 "state_sample_bytes": byte_tokens(state),
                 "elapsed_ms": (time.monotonic() - started) * 1000,
             }
         except Exception:
             return {
-                "mode": "shadow",
+                "mode": self.config.mode,
                 "disposition": "abstain",
                 "reason": "decision_unavailable",
                 "elapsed_ms": (time.monotonic() - started) * 1000,

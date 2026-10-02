@@ -1,0 +1,127 @@
+# Execution policies and required Laya routing
+
+Install with `python -m pip install .` from the checkout, or `python -m pip install mirrorneuron-prism` after publication. Laya installs as a required dependency. Keep physical model names, URLs, limits, capabilities, and prices in the raw-model JSON; policy profiles belong in `prism.json`.
+
+```sh
+export PRISM_API_KEY='your-configured-secret'
+prism validate --config prism.json
+prism policies
+prism serve --config prism.json
+```
+
+The service prepares `convaiinnovations/laya-typed-decisions` on CPU before accepting requests. Its first startup may download weights. Set `decision.model` to a prepared local checkpoint for offline use, or pin `decision.revision` and optionally `expected_sha256` file hashes for reproducibility. Installation/configuration commands do not load weights.
+
+An LLM call follows this flow:
+
+```text
+Client: POST /v1/chat/completions, model="prism"
+                         |
+               Authenticate + validate
+                         |
+      Preserve original messages and source bytes
+                         |
+       Compile finite plans; remove those exceeding
+        capabilities, context, coverage, or budgets
+                         |
+           Several eligible? --- no ---> sole plan
+                         |                  |
+                        yes                 |
+                         |                  |
+              Resident CPU Laya             |
+        bounded instructions + plan metadata |
+                         |                  |
+       eligible, confident, untruncated?     |
+                /                \          |
+               yes                no        |
+         proposed plan      rules fallback  |
+                \                /          |
+                 +--------------+-----------+
+                                |
+              Reserve the entire chosen graph
+                                |
+          +---------------------+-----------------------+
+          |                     |                       |
+        DIRECT              MAP POLICIES          RETRIEVE_READ
+          |                     |                       |
+   original messages     source partitions      lexical span selection
+          |                     |                (focused coverage only)
+          |              +------+---------+             |
+          |              |                |             |
+          |       evidence/verified     batched          |
+          |        extract per part  extract per group   |
+          |              +--------+-------+             |
+          |                       |                     |
+          |           validate every partition          |
+          |             and original quote span         |
+          |                       |                     |
+          |         verified only: independent checks   |
+          |                       |                     |
+          |             synthesize ALL records          |
+          |                       |                     |
+          +-----------------------+---------------------+
+                                  |
+                  Validate final response/schema
+                                  |
+                  One assistant response + trace
+```
+
+`N` is the number of lossless source partitions; `M` is the number of context-fitting groups after batching. Calls below count physical LLM requests, excluding the local CPU decision.
+
+| Policy / fixed alias | Physical calls | Suitable workload | Coverage |
+|---|---:|---|---|
+| `direct` / `prism-direct` | 1 | Self-contained requests that fit; caller tools and direct-only parameters | Full original request |
+| `evidence_map` / `prism-evidence` | N + 1 | Parallel evidence extraction across large explicit sources | Every required partition |
+| `batched_map` / `prism-batched` | M + 1 | Several short documents; reduces extractor call overhead | Every required partition |
+| `verified_map` / `prism-verified` | 2N + 1 | Interpretations needing an independent source check | Every required partition and record |
+| `retrieve_read` / `prism-retrieve` | 1 | Focused lookup with strong lexical matches | Selected original partitions |
+
+Use `model: "prism"` to let Laya select a feasible policy; use a fixed alias for controlled comparisons. `X-Prism-Policy` reports the selection, `X-Prism-Coverage` identifies focused/full coverage, and the authenticated trace records eligible/rejected plans, physical calls, partition coverage, decision probability, and timing. Fixed aliases still require startup preparation, but skip decision inference when there is only one eligible policy.
+
+Configure allowed plans and stage models explicitly:
+
+```json
+{
+  "profiles": {
+    "prism": {
+      "direct": "small",
+      "worker": "small",
+      "synthesizer": "small",
+      "verifier": "small",
+      "strategy": "auto",
+      "allowed_policies": ["direct", "evidence_map", "batched_map", "verified_map"],
+      "batch_max_partitions": 4,
+      "coverage": "exhaustive"
+    },
+    "prism-lookup": {
+      "direct": "small",
+      "strategy": "retrieve_read",
+      "coverage": "focused",
+      "retrieval_top_k": 4
+    }
+  },
+  "decision": {
+    "mode": "route",
+    "model": "convaiinnovations/laya-typed-decisions",
+    "min_option_confidence": 0.7
+  }
+}
+```
+
+Merge these fields into the complete generated configuration and reference IDs in your raw-model JSON. `verifier` defaults to the worker, then direct model. `shadow` can record Laya proposals while retaining rules selection; Laya remains required, and there is no `off` mode.
+
+All map policies validate each partition's completion, needs, and exact original quote spans. Batching cannot omit a partition or borrow its neighbor's quote. Verification checks all record IDs and fails on unsupported facts, issues, missing IDs, or truncation; it is a model judgment and does not prove correctness or recall. Final synthesis keeps every validated record or fails visibly if they exceed context. Retrieval deliberately selects a subset, never promises exhaustive coverage, and rejects a query with no lexical matches. Counts and exhaustive inventories require a fitting direct route.
+
+Laya receives bounded instruction samples and structural metadata, without source text. Its option probability must pass the configured threshold, and truncated decisions cannot select a policy. Rejected choices and inference failures use the feasible rules fallback; model-loading failure prevents startup. Probabilities have not been calibrated for these five policies, so evaluate routing on your workload before interpreting them as quality evidence.
+
+Compare policies with the same saved reference suite:
+
+```sh
+prism benchmark run --config prism.json --candidate prism-batched \
+  --out-dir benchmark-results/batched-a
+prism benchmark run --config prism.json --candidate prism \
+  --out-dir benchmark-results/laya-auto-a
+prism benchmark compare benchmark-results/batched-a benchmark-results/laya-auto-a \
+  --out-dir benchmark-results/batched-vs-auto
+```
+
+See [benchmark metrics](benchmarking.md) and [tested curl examples](flagship-curl-cases.md). A smaller graph is a potential overhead saving; actual speed, reference quality, and declared cost depend on model behavior and must be measured.

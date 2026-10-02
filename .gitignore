@@ -29,6 +29,7 @@ htmlcov/
 .env
 *.key
 .prism/
+benchmark-results/
 
 # macOS
 .DS_Store

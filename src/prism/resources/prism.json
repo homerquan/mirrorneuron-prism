@@ -13,7 +13,7 @@
       "synthesizer": "local",
       "strategy": "auto",
       "public_max_output_tokens": 2048,
-      "worker_output_tokens": 1024,
+      "worker_output_tokens": 2048,
       "partition_bytes": 6000,
       "limits": {
         "max_calls": 64,
@@ -24,7 +24,42 @@
         "max_parallel": 2
       }
     },
-    "prism-direct": {"direct": "local", "strategy": "direct"}
+    "prism-direct": {
+      "direct": "local",
+      "strategy": "direct"
+    },
+    "prism-evidence": {
+      "direct": "local",
+      "worker": "local",
+      "synthesizer": "local",
+      "strategy": "evidence_map"
+    },
+    "prism-batched": {
+      "direct": "local",
+      "worker": "local",
+      "synthesizer": "local",
+      "strategy": "batched_map",
+      "worker_output_tokens": 2048
+    },
+    "prism-verified": {
+      "direct": "local",
+      "worker": "local",
+      "verifier": "local",
+      "synthesizer": "local",
+      "strategy": "verified_map"
+    },
+    "prism-retrieve": {
+      "direct": "local",
+      "synthesizer": "local",
+      "strategy": "retrieve_read",
+      "coverage": "focused",
+      "retrieval_top_k": 4
+    }
   },
-  "decision": {"mode": "off", "model": "typed-decisions"}
+  "decision": {
+    "mode": "route",
+    "model": "convaiinnovations/laya-typed-decisions",
+    "revision": "1a793eb568e6718f15941d08f85432581df534e3",
+    "min_option_confidence": 0.7
+  }
 }

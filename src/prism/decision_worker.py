@@ -1,4 +1,4 @@
-"""Spawn target: optional ML imports and resident weights stay outside the ASGI process."""
+"""Spawn target: ML imports and resident weights stay outside the ASGI process."""
 
 
 def serve(connection, config):

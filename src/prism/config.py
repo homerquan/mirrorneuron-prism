@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .errors import PrismError
+from .policies import PolicyName
 
 
 class StrictModel(BaseModel):
@@ -88,7 +89,23 @@ class Profile(StrictModel):
     direct: str
     worker: str | None = None
     synthesizer: str | None = None
-    strategy: Literal["auto", "direct", "evidence_map"] = "auto"
+    verifier: str | None = None
+    strategy: Literal[
+        "auto", "direct", "evidence_map", "batched_map", "verified_map", "retrieve_read"
+    ] = "auto"
+    allowed_policies: list[PolicyName] = Field(
+        default_factory=lambda: [
+            "direct",
+            "evidence_map",
+            "batched_map",
+            "verified_map",
+            "retrieve_read",
+        ],
+        min_length=1,
+    )
+    coverage: Literal["exhaustive", "focused"] = "exhaustive"
+    batch_max_partitions: int = Field(default=4, ge=1, le=32)
+    retrieval_top_k: int = Field(default=4, ge=1, le=128)
     public_max_output_tokens: int = Field(default=2048, ge=1)
     worker_output_tokens: int = Field(default=1024, ge=128)
     partition_bytes: int = Field(default=6000, ge=128)
@@ -96,12 +113,13 @@ class Profile(StrictModel):
 
 
 class DecisionConfig(StrictModel):
-    mode: Literal["off", "shadow"] = "off"
-    model: str = "typed-decisions"
+    mode: Literal["route", "shadow"] = "route"
+    model: str = "convaiinnovations/laya-typed-decisions"
     revision: str | None = None
     expected_sha256: dict[str, str] | None = None
     max_len: int = Field(default=1024, ge=128, le=8192)
     max_state_bytes: int = Field(default=1200, ge=128, le=8192)
+    min_option_confidence: float = Field(default=0.7, ge=0, le=1)
 
 
 class ServerConfig(StrictModel):
@@ -161,7 +179,12 @@ def load_config(path):
     for alias, profile in config.profiles.items():
         if not alias or any(
             ref and ref not in models
-            for ref in (profile.direct, profile.worker, profile.synthesizer)
+            for ref in (
+                profile.direct,
+                profile.worker,
+                profile.synthesizer,
+                profile.verifier,
+            )
         ):
             raise ValueError("profile references an unknown raw model")
         for ref in {profile.direct, profile.synthesizer or profile.direct}:
@@ -170,4 +193,19 @@ def load_config(path):
         worker = models[profile.worker or profile.direct]
         if profile.worker_output_tokens > worker.max_output_tokens:
             raise ValueError("worker output cap exceeds backend output cap")
+        verifier = models[profile.verifier or profile.worker or profile.direct]
+        if (
+            "verified_map" in profile.allowed_policies
+            and profile.worker_output_tokens > verifier.max_output_tokens
+        ):
+            raise ValueError("verification output cap exceeds backend output cap")
+        if profile.strategy == "retrieve_read" and profile.coverage != "focused":
+            raise ValueError("retrieve_read requires explicitly focused coverage")
+        if len(set(profile.allowed_policies)) != len(profile.allowed_policies):
+            raise ValueError("allowed_policies must be unique")
+        if (
+            profile.strategy != "auto"
+            and profile.strategy not in profile.allowed_policies
+        ):
+            raise ValueError("forced strategy must be present in allowed_policies")
     return config, models

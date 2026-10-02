@@ -161,7 +161,7 @@ class Plan:
     nodes: tuple[PlanNode, ...]
     max_depth: int = 3
     allowed_operators: frozenset[str] = field(
-        default=frozenset({"generate", "extract", "synthesize"})
+        default=frozenset({"generate", "extract", "verify", "synthesize"})
     )
 
     def validate(self, max_nodes):
