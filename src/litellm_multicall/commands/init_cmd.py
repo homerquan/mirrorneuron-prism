@@ -50,7 +50,9 @@ def example_configs(cpu=False):
             "callbacks": ["litellm_multicall.hooks.multicall_hooks"],
         },
     }
-    validate_references(policy, llm)
+    errors = validate_references(policy, llm)
+    if errors:
+        raise ValueError("; ".join(errors))
     project = ProjectConfig(
         controllers={"quick": Controller(), "rules": Controller(backend="rules")}
         if cpu

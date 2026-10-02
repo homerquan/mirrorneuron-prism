@@ -78,26 +78,47 @@
           "title": "Max Backend Attempts"
         },
         "max_total_tokens": {
-          "exclusiveMinimum": 0,
-          "title": "Max Total Tokens",
-          "type": "integer"
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Total Tokens"
         },
         "deadline_ms": {
-          "exclusiveMinimum": 0,
-          "title": "Deadline Ms",
-          "type": "integer"
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Deadline Ms"
         },
         "child_timeout_ms": {
-          "default": 45000,
-          "exclusiveMinimum": 0,
-          "title": "Child Timeout Ms",
-          "type": "integer"
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Child Timeout Ms"
         }
       },
       "required": [
-        "max_model_calls",
-        "max_total_tokens",
-        "deadline_ms"
+        "max_model_calls"
       ],
       "title": "Budgets",
       "type": "object"
@@ -472,7 +493,6 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": 1,
       "title": "Schema Version",
       "type": "integer"
     },

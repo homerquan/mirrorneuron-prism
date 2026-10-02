@@ -29,3 +29,6 @@ htmlcov/
 .env
 *.key
 .prism/
+
+# macOS
+.DS_Store

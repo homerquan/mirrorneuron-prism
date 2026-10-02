@@ -105,3 +105,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if getattr(args, "verbose", False):
         print(f"{error.kind}: {redact(str(error))}", file=sys.stderr)
     return error.code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

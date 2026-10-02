@@ -48,10 +48,9 @@ def test_physical_model_locality_and_recursion(model, url):
     c, llm, _ = example_configs()
     llm["model_list"][0]["litellm_params"].update(model=model, api_base=url)
     if model.startswith("multicall") or "example" in url:
-        with pytest.raises(ValueError):
-            validate_references(c, llm)
+        assert validate_references(c, llm)
     else:
-        validate_references(c, llm)
+        assert validate_references(c, llm) == []
 
 
 @pytest.mark.parametrize(

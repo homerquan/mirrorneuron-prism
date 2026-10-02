@@ -4,12 +4,20 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import re
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictInt,
+    field_validator,
+    model_validator,
+)
 
 
 class StrictModel(BaseModel):
@@ -51,9 +59,9 @@ class Selection(Generation):
 class Budgets(StrictModel):
     max_model_calls: Positive
     max_backend_attempts: Positive | None = None
-    max_total_tokens: Positive
-    deadline_ms: Positive
-    child_timeout_ms: Positive = 45000
+    max_total_tokens: Positive | None = None
+    deadline_ms: Positive | None = None
+    child_timeout_ms: Positive | None = None
 
     @model_validator(mode="after")
     def attempts(self):
@@ -113,6 +121,15 @@ class Policy(StrictModel):
     def references(self):
         if len(set(self.allowed_model_groups)) != len(self.allowed_model_groups):
             raise ValueError("allowed_model_groups must be unique")
+        if any(
+            not g.strip() or g.startswith("multicall/")
+            for g in self.allowed_model_groups
+        ):
+            raise ValueError("allowed groups must be nonempty physical model names")
+        if self.fallback and self.on_unresolved != "fallback":
+            raise ValueError("fallback requires on_unresolved: fallback")
+        if self.api.unsupported == "passthrough" and not self.api.passthrough_model:
+            raise ValueError("passthrough requires a model")
         refs = [c.model for c in self.candidates]
         refs += [s.model for s in (self.selection, self.fallback, self.combine) if s]
         if self.api.passthrough_model:
@@ -158,10 +175,24 @@ class Policy(StrictModel):
 
 
 class PrismConfig(StrictModel):
-    schema_version: Literal[1]
+    schema_version: StrictInt
     runtime: Runtime = Field(default_factory=Runtime)
     policies: dict[Name, Policy] = Field(min_length=1)
     prompt_variants: dict[Name, str] = Field(default_factory=dict)
+
+    @field_validator("schema_version")
+    @classmethod
+    def version_one(cls, value):
+        if value != 1:
+            raise ValueError("schema_version must be 1")
+        return value
+
+    @field_validator("policies")
+    @classmethod
+    def policy_ids(cls, value):
+        if not value or any(not re.fullmatch(r"[A-Za-z0-9_-]+", key) for key in value):
+            raise ValueError("invalid policy id")
+        return value
 
     @model_validator(mode="after")
     def prompts(self):
@@ -183,8 +214,8 @@ def load_yaml(path: Path | str) -> dict:
     return data
 
 
-def load_policy_config(path: Path | str) -> dict:
-    return PrismConfig.model_validate(load_yaml(path)).model_dump(mode="json")
+def load_policy_config(path: Path | str) -> PrismConfig:
+    return PrismConfig.model_validate(load_yaml(path))
 
 
 def local_endpoint(value: str) -> bool:
@@ -200,7 +231,7 @@ def local_endpoint(value: str) -> bool:
         return False
 
 
-def validate_references(policy: dict, litellm: dict) -> None:
+def _validate_references(policy: dict, litellm: dict) -> None:
     entries = litellm.get("model_list")
     if not isinstance(entries, list) or not entries:
         raise ValueError("LiteLLM model_list must be a nonempty list")
@@ -221,7 +252,7 @@ def validate_references(policy: dict, litellm: dict) -> None:
             model.startswith("multicall/")
             and model.split("/", 1)[1] not in policy["policies"]
         ):
-            raise ValueError("logical alias references unknown policy")
+            raise ValueError(f"logical alias references unknown policy: {model}")
     for p in policy["policies"].values():
         for name in p["allowed_model_groups"]:
             if name not in groups:
@@ -236,3 +267,69 @@ def validate_references(policy: dict, litellm: dict) -> None:
                     raise ValueError(
                         f"local_only requires an explicitly local deployment: {name}"
                     )
+
+
+# Public configuration API retained from remote main.
+ConfigError = ValueError
+MULTICALL_PREFIX = "multicall/"
+RuntimeConfig = Runtime
+CandidateSpec = CandidateConfig
+SelectionSpec = Selection
+BudgetSpec = Budgets
+AdaptiveOptions = Adaptive
+FallbackSpec = Generation
+ApiSpec = APISettings
+PolicySpec = Policy
+load_litellm_config = load_yaml
+
+
+def extract_litellm_model_groups(litellm_cfg: dict[str, Any]) -> set[str]:
+    """Return the set of ``model_name`` values from a LiteLLM config mapping."""
+    groups: set[str] = set()
+    model_list = litellm_cfg.get("model_list", [])
+    if not isinstance(model_list, list):
+        raise ConfigError("litellm config 'model_list' must be a list")
+    for entry in model_list:
+        if isinstance(entry, dict) and isinstance(entry.get("model_name"), str):
+            groups.add(entry["model_name"])
+    return groups
+
+
+def extract_multicall_policy_refs(
+    litellm_cfg: dict[str, Any],
+) -> dict[str, list[str]]:
+    """Map ``multicall/<policy>`` targets to the public model names using them."""
+    refs: dict[str, list[str]] = {}
+    for entry in litellm_cfg.get("model_list", []) or []:
+        if not isinstance(entry, dict):
+            continue
+        public = entry.get("model_name")
+        params = entry.get("litellm_params", {})
+        target = params.get("model") if isinstance(params, dict) else None
+        if isinstance(public, str) and isinstance(target, str):
+            if target == MULTICALL_PREFIX.rstrip("/"):
+                continue
+            if target.startswith(MULTICALL_PREFIX):
+                policy_id = target[len(MULTICALL_PREFIX) :]
+                refs.setdefault(policy_id, []).append(public)
+    return refs
+
+
+def validate_references(policy: PrismConfig | dict, litellm: dict) -> list[str]:
+    if isinstance(policy, PrismConfig):
+        policy = policy.model_dump(mode="json")
+    try:
+        _validate_references(policy, litellm)
+    except ValueError as exc:
+        return [str(exc)]
+    return []
+
+
+def validate_files(policy_path: Path | str, litellm_path: Path | str) -> list[str]:
+    return validate_references(
+        load_policy_config(policy_path), load_litellm_config(litellm_path)
+    )
+
+
+def prism_config_json_schema() -> dict:
+    return PrismConfig.model_json_schema()

@@ -11,10 +11,15 @@ def load_runtime_config():
     path = os.environ.get("PRISM_POLICY_CONFIG") or os.environ.get("MULTICALL_CONFIG")
     if not path:
         raise RuntimeError("PRISM_POLICY_CONFIG must name an explicit policy file")
-    return load_policy_config(path)
+    return load_policy_config(path).model_dump(mode="json")
 
 
 class MulticallProvider(CustomLLM):
+    model_name: str = "multicall"
+
+    def __init__(self):
+        super().__init__()
+
     async def acompletion(self, model, messages, **kwargs):
         load_runtime_config()
         raise NotImplementedError("Prism generative execution is not implemented (P3)")
@@ -24,6 +29,9 @@ class MulticallProvider(CustomLLM):
 
     async def astreaming(self, model, messages, **kwargs):
         load_runtime_config()
+        raise NotImplementedError("Prism streaming execution is not implemented")
+
+    def streaming(self, *args, **kwargs):
         raise NotImplementedError("Prism streaming execution is not implemented")
 
     def completion(self, *args, **kwargs):

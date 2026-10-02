@@ -85,9 +85,11 @@ class Context:
             if llm_path
             else self.configured(self.project.files.litellm_config)
         )
-        policy = load_policy_config(policy_path)
+        policy = load_policy_config(policy_path).model_dump(mode="json")
         llm = load_yaml(llm_path)
-        validate_references(policy, llm)
+        errors = validate_references(policy, llm)
+        if errors:
+            raise ValueError("; ".join(errors))
         return policy, llm, policy_path, llm_path
 
     def controller(self, name: str):
