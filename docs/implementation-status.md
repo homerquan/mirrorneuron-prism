@@ -1,4 +1,6 @@
-# Implementation status — 2026-10-01
+# Legacy implementation status — 2026-10-01
+
+This document records the retained `litellm_multicall` CPU measurement component. The October 2 standalone service lives in `src/prism` and supersedes the generative-runtime roadmap below. See [the standalone contract](standalone-contract.md) and [release validation](standalone-validation.md) for current behavior.
 
 The requested delivery is the specification's P0–P2 standalone CPU measurement slice. P3 and later integrations remain unavailable. The current checkout predates the reviewed Prism revision: its policy loader was permissive, its engine returned empty results, and its provider returned a dummy completion. Those paths now validate strictly or fail closed. The existing local `.DS_Store` change was preserved; JEV-CPU source was not edited.
 

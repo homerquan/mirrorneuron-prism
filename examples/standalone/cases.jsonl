@@ -1,0 +1,2 @@
+{"id":"simple","messages":[{"role":"user","content":"Reply with the word prism."}],"expected_contains":"prism"}
+{"id":"source","messages":[{"role":"user","content":"Summarize the policy. <prism-source>Deployments need manager approval. Emergency deployments need a retrospective review.</prism-source> Cite evidence."}],"expected_contains":"approval"}

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "models_file": "models/muse-gemma-mix.json",
+  "server": {"host": "127.0.0.1", "port": 8080, "api_key_env": "PRISM_API_KEY"},
+  "profiles": {
+    "prism": {
+      "direct": "ai/gemma4:E2B",
+      "worker": "ai/gemma4:E2B",
+      "synthesizer": "ai/gemma4:E2B",
+      "strategy": "auto",
+      "public_max_output_tokens": 2048,
+      "worker_output_tokens": 1024,
+      "partition_bytes": 6000
+    },
+    "prism-direct": {"direct": "ai/gemma4:E2B", "strategy": "direct"},
+    "prism-careful": {
+      "direct": "muse-glimmer-30b",
+      "worker": "ai/gemma4:E2B",
+      "synthesizer": "muse-glimmer-30b",
+      "strategy": "auto"
+    }
+  },
+  "decision": {"mode": "off", "model": "typed-decisions"}
+}

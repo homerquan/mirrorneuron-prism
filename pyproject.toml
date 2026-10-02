@@ -1,27 +1,50 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
 name = "mirrorneuron-prism"
-version = "0.1.0"
-description = "Bounded multi-call inference as a LiteLLM Proxy extension"
+version = "0.2.0"
+description = "Standalone, bounded, source-preserving OpenAI-compatible LLM proxy"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE", "src/litellm_multicall/_vendor/semif/LICENSE"]
+authors = [{name = "Prism contributors"}]
+keywords = ["llm", "proxy", "openai", "long-context", "inference", "laya"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
-  "litellm>=1,<2",
+  "anyio>=4.4,<5",
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.30,<1",
+  "httpx>=0.27,<1",
   "pydantic>=2,<3",
-  "PyYAML>=6,<7",
   "jsonschema>=4,<5",
 ]
 
+[project.urls]
+Homepage = "https://github.com/homerquan/mirrorneuron-prism"
+Repository = "https://github.com/homerquan/mirrorneuron-prism"
+Issues = "https://github.com/homerquan/mirrorneuron-prism/issues"
+
 [project.optional-dependencies]
-proxy = ["litellm[proxy]>=1,<2"]
+laya = ["laya>=0.3.23,<0.4"]
+legacy = ["litellm>=1,<2", "PyYAML>=6,<7"]
+proxy = ["litellm[proxy]>=1,<2", "PyYAML>=6,<7"]
 classifier-jevcpu = [
   "torch>=2.10,<2.11",
   "transformers>=5.17,<5.18",
   "huggingface-hub>=1,<2",
   "safetensors>=0.7,<1",
+  "PyYAML>=6,<7",
 ]
 dev = [
   "build",
@@ -38,10 +61,16 @@ dev = [
 multicall = "litellm_multicall.provider:multicall_provider"
 
 [project.scripts]
+prism = "prism.cli:main"
 mn_prism = "litellm_multicall.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/litellm_multicall"]
+packages = ["src/prism", "src/litellm_multicall"]
+core-metadata-version = "2.4"
+
+[tool.hatch.build.targets.sdist]
+core-metadata-version = "2.4"
+include = ["/src", "/tests", "/examples", "/models", "/prism.json", "/README.md", "/LICENSE", "/pyproject.toml", "/docs", "/prism_standalone_proxy_design.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -1,0 +1,15 @@
+{
+  "models": [
+    {
+      "id": "local",
+      "name": "your-served-model-name",
+      "base_url": "http://127.0.0.1:8000/v1",
+      "api_key": null,
+      "context_window": 32768,
+      "max_output_tokens": 4096,
+      "safety_margin": 256,
+      "concurrency": 2,
+      "capabilities": ["text", "stream", "tools", "json_object", "json_schema"]
+    }
+  ]
+}

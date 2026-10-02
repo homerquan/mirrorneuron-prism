@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "models_file": "models.json",
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "api_key_env": "PRISM_API_KEY"
+  },
+  "profiles": {
+    "prism": {
+      "direct": "local",
+      "worker": "local",
+      "synthesizer": "local",
+      "strategy": "auto",
+      "public_max_output_tokens": 2048,
+      "worker_output_tokens": 1024,
+      "partition_bytes": 6000,
+      "limits": {
+        "max_calls": 64,
+        "max_input_tokens": 2000000,
+        "max_output_tokens": 65536,
+        "deadline_seconds": 120,
+        "max_partitions": 60,
+        "max_parallel": 2
+      }
+    },
+    "prism-direct": {"direct": "local", "strategy": "direct"}
+  },
+  "decision": {"mode": "off", "model": "typed-decisions"}
+}
