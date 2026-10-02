@@ -1,0 +1,248 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "request_id": {
+      "minLength": 1,
+      "title": "Request Id",
+      "type": "string"
+    },
+    "logical_request_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Logical Request Id"
+    },
+    "state_version": {
+      "minLength": 1,
+      "title": "State Version",
+      "type": "string"
+    },
+    "criterion_id": {
+      "minLength": 1,
+      "title": "Criterion Id",
+      "type": "string"
+    },
+    "primitive": {
+      "enum": [
+        "route",
+        "relevance",
+        "sufficient",
+        "retry",
+        "escalate",
+        "stop"
+      ],
+      "title": "Primitive",
+      "type": "string"
+    },
+    "backend": {
+      "title": "Backend",
+      "type": "string"
+    },
+    "winner_option_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Winner Option Id"
+    },
+    "accepted_option_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Accepted Option Id"
+    },
+    "option_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Option Ids",
+      "type": "array"
+    },
+    "option_logits": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Option Logits"
+    },
+    "option_probabilities": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Option Probabilities"
+    },
+    "probability_status": {
+      "default": "uncalibrated_conditional_option_scores",
+      "title": "Probability Status",
+      "type": "string"
+    },
+    "confidence": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Confidence"
+    },
+    "disposition": {
+      "default": "scored",
+      "enum": [
+        "scored",
+        "accept",
+        "abstain",
+        "reject"
+      ],
+      "title": "Disposition",
+      "type": "string"
+    },
+    "reason": {
+      "default": "standalone_scoring",
+      "title": "Reason",
+      "type": "string"
+    },
+    "scoring_mode": {
+      "default": "direct",
+      "title": "Scoring Mode",
+      "type": "string"
+    },
+    "input_tokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Input Tokens"
+    },
+    "generated_output_tokens": {
+      "default": 0,
+      "title": "Generated Output Tokens",
+      "type": "integer"
+    },
+    "model_forward_passes": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 1,
+      "title": "Model Forward Passes"
+    },
+    "timing_ms": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Timing Ms",
+      "type": "object"
+    },
+    "prompt_sha256": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prompt Sha256"
+    },
+    "max_score": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Score"
+    },
+    "score_margin": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Score Margin"
+    },
+    "entropy": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Entropy"
+    }
+  },
+  "required": [
+    "request_id",
+    "state_version",
+    "criterion_id",
+    "primitive",
+    "backend",
+    "option_ids"
+  ],
+  "title": "DecisionResult",
+  "type": "object"
+}

@@ -1,27 +1,33 @@
+"""Stable LiteLLM entry point; unavailable inference must fail closed."""
+
+import os
+
 from litellm import CustomLLM
-from litellm.types import ModelResponse, ChatCompletionResponseMessage
+
+from .config import load_policy_config
+
+
+def load_runtime_config():
+    path = os.environ.get("PRISM_POLICY_CONFIG") or os.environ.get("MULTICALL_CONFIG")
+    if not path:
+        raise RuntimeError("PRISM_POLICY_CONFIG must name an explicit policy file")
+    return load_policy_config(path)
+
 
 class MulticallProvider(CustomLLM):
-    model_name: str = "multicall"
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-    
+    async def acompletion(self, model, messages, **kwargs):
+        load_runtime_config()
+        raise NotImplementedError("Prism generative execution is not implemented (P3)")
+
     async def acomplete(self, model, messages, **kwargs):
-        # Minimal stub that returns a dummy response so the proxy can start
-        return ModelResponse(
-            choices=[{
-                "message": ChatCompletionResponseMessage(role="assistant", content="stub response"),
-                "finish_reason": "stop",
-                "index": 0
-            }],
-            created=0,
-            model=model,
-            usage=None
-        )
-    
+        return await self.acompletion(model, messages, **kwargs)
+
     async def astreaming(self, model, messages, **kwargs):
-        # Streaming stub
-        return self.acomplete(model, messages, **kwargs)
+        load_runtime_config()
+        raise NotImplementedError("Prism streaming execution is not implemented")
 
-multicall_provider = MulticallProvider
+    def completion(self, *args, **kwargs):
+        raise NotImplementedError("Prism synchronous execution is not implemented")
 
+
+multicall_provider = MulticallProvider()

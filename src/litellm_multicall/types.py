@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+
 
 @dataclass
 class RequestContext:
@@ -7,15 +7,15 @@ class RequestContext:
     requested_public_model: str
     policy_id: str
     policy_version: int = 1
-    authenticated_principal_ref: Optional[str] = None
-    deadline_ms: Optional[int] = None
+    authenticated_principal_ref: str | None = None
+    deadline_ms: int | None = None
 
 @dataclass
 class ChildContext:
     logical_request_id: str
     child_call_id: str
     stage: str
-    candidate_id: Optional[str] = None
+    candidate_id: str | None = None
     expansion_depth: int = 1
 
 @dataclass
@@ -31,6 +31,6 @@ class Candidate:
 class ExecutionResult:
     final_assistant_message: str = ""
     finish_reason: str = ""
-    selected_candidate_id: Optional[str] = None
+    selected_candidate_id: str | None = None
     aggregate_usage: dict = field(default_factory=dict)
 

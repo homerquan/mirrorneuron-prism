@@ -1,0 +1,422 @@
+{
+  "$defs": {
+    "Controller": {
+      "additionalProperties": false,
+      "properties": {
+        "backend": {
+          "default": "jev_cpu",
+          "enum": [
+            "jev_cpu",
+            "rules"
+          ],
+          "title": "Backend",
+          "type": "string"
+        },
+        "model_source": {
+          "default": "Qwen/Qwen3-0.6B",
+          "minLength": 1,
+          "title": "Model Source",
+          "type": "string"
+        },
+        "artifact_ref": {
+          "default": "quick",
+          "minLength": 1,
+          "title": "Artifact Ref",
+          "type": "string"
+        },
+        "device": {
+          "const": "cpu",
+          "default": "cpu",
+          "title": "Device",
+          "type": "string"
+        },
+        "dtype": {
+          "const": "float32",
+          "default": "float32",
+          "title": "Dtype",
+          "type": "string"
+        },
+        "scoring_mode": {
+          "default": "direct",
+          "enum": [
+            "direct",
+            "shared",
+            "compact_generation"
+          ],
+          "title": "Scoring Mode",
+          "type": "string"
+        },
+        "max_input_tokens": {
+          "default": 1024,
+          "exclusiveMinimum": 0,
+          "title": "Max Input Tokens",
+          "type": "integer"
+        },
+        "max_request_bytes": {
+          "default": 262144,
+          "exclusiveMinimum": 0,
+          "title": "Max Request Bytes",
+          "type": "integer"
+        },
+        "max_criterion_bytes": {
+          "default": 32768,
+          "exclusiveMinimum": 0,
+          "title": "Max Criterion Bytes",
+          "type": "integer"
+        },
+        "max_criteria_per_batch": {
+          "default": 8,
+          "exclusiveMinimum": 0,
+          "title": "Max Criteria Per Batch",
+          "type": "integer"
+        },
+        "max_padded_suffix_tokens": {
+          "default": 8192,
+          "exclusiveMinimum": 0,
+          "title": "Max Padded Suffix Tokens",
+          "type": "integer"
+        },
+        "process_mode": {
+          "const": "spawned",
+          "default": "spawned",
+          "title": "Process Mode",
+          "type": "string"
+        },
+        "threads": {
+          "default": 2,
+          "maximum": 64,
+          "minimum": 1,
+          "title": "Threads",
+          "type": "integer"
+        },
+        "interop_threads": {
+          "default": 1,
+          "maximum": 16,
+          "minimum": 1,
+          "title": "Interop Threads",
+          "type": "integer"
+        },
+        "max_inflight_batches": {
+          "const": 1,
+          "default": 1,
+          "title": "Max Inflight Batches",
+          "type": "integer"
+        },
+        "queue_capacity": {
+          "default": 8,
+          "maximum": 1024,
+          "minimum": 0,
+          "title": "Queue Capacity",
+          "type": "integer"
+        },
+        "inference_timeout_ms": {
+          "default": 10000,
+          "exclusiveMinimum": 0,
+          "title": "Inference Timeout Ms",
+          "type": "integer"
+        },
+        "startup_timeout_ms": {
+          "default": 120000,
+          "exclusiveMinimum": 0,
+          "title": "Startup Timeout Ms",
+          "type": "integer"
+        },
+        "max_restarts": {
+          "default": 1,
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Max Restarts",
+          "type": "integer"
+        },
+        "on_unavailable": {
+          "default": "abstain",
+          "enum": [
+            "abstain",
+            "error"
+          ],
+          "title": "On Unavailable",
+          "type": "string"
+        }
+      },
+      "title": "Controller",
+      "type": "object"
+    },
+    "Plan": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "suite": {
+          "enum": [
+            "semif-authored",
+            "semif-shape"
+          ],
+          "title": "Suite",
+          "type": "string"
+        },
+        "dataset_manifest_sha256": {
+          "title": "Dataset Manifest Sha256",
+          "type": "string"
+        },
+        "dataset_revision": {
+          "title": "Dataset Revision",
+          "type": "string"
+        },
+        "selection": {
+          "enum": [
+            "smoke",
+            "full"
+          ],
+          "title": "Selection",
+          "type": "string"
+        },
+        "split": {
+          "enum": [
+            "calibration",
+            "validation",
+            "test",
+            "all",
+            "systems"
+          ],
+          "title": "Split",
+          "type": "string"
+        },
+        "split_method": {
+          "default": "prism-group-hash-v1",
+          "title": "Split Method",
+          "type": "string"
+        },
+        "tasks": {
+          "items": {
+            "$ref": "#/$defs/Task"
+          },
+          "minItems": 1,
+          "title": "Tasks",
+          "type": "array"
+        },
+        "treatment": {
+          "enum": [
+            "rules",
+            "cpu_direct",
+            "cpu_shared",
+            "cpu_compact_generation"
+          ],
+          "title": "Treatment",
+          "type": "string"
+        },
+        "controller": {
+          "title": "Controller",
+          "type": "string"
+        },
+        "profile": {
+          "$ref": "#/$defs/Controller"
+        },
+        "model_artifact_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Artifact Sha256"
+        },
+        "calibration_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Calibration Sha256"
+        },
+        "calibration_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Calibration Path"
+        },
+        "seed": {
+          "default": 42,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "repetitions": {
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Repetitions",
+          "type": "integer"
+        },
+        "warmup_requests": {
+          "const": 1,
+          "default": 1,
+          "title": "Warmup Requests",
+          "type": "integer"
+        },
+        "concurrency": {
+          "const": 1,
+          "default": 1,
+          "title": "Concurrency",
+          "type": "integer"
+        },
+        "quality_margin": {
+          "default": 0.02,
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "title": "Quality Margin",
+          "type": "number"
+        },
+        "statistical_method": {
+          "default": "paired independent-source-group Hoeffding, one-sided alpha=0.05",
+          "title": "Statistical Method",
+          "type": "string"
+        },
+        "resource_metric": {
+          "default": "controller_process_cpu_seconds",
+          "title": "Resource Metric",
+          "type": "string"
+        },
+        "privacy_log_content": {
+          "const": false,
+          "default": false,
+          "title": "Privacy Log Content",
+          "type": "boolean"
+        },
+        "package_code_sha256": {
+          "title": "Package Code Sha256",
+          "type": "string"
+        },
+        "project_sha256": {
+          "title": "Project Sha256",
+          "type": "string"
+        },
+        "plan_sha256": {
+          "title": "Plan Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "suite",
+        "dataset_manifest_sha256",
+        "dataset_revision",
+        "selection",
+        "split",
+        "tasks",
+        "treatment",
+        "controller",
+        "profile",
+        "repetitions",
+        "package_code_sha256",
+        "project_sha256",
+        "plan_sha256"
+      ],
+      "title": "Plan",
+      "type": "object"
+    },
+    "Task": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "group_id": {
+          "title": "Group Id",
+          "type": "string"
+        },
+        "split": {
+          "title": "Split",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "group_id",
+        "split"
+      ],
+      "title": "Task",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "run_id": {
+      "pattern": "^[0-9a-f]{32}$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "plan": {
+      "$ref": "#/$defs/Plan"
+    },
+    "dataset_limitation": {
+      "title": "Dataset Limitation",
+      "type": "string"
+    },
+    "environment": {
+      "additionalProperties": true,
+      "title": "Environment",
+      "type": "object"
+    },
+    "hardware": {
+      "additionalProperties": true,
+      "title": "Hardware",
+      "type": "object"
+    },
+    "cache_policy": {
+      "title": "Cache Policy",
+      "type": "string"
+    },
+    "warmup_policy": {
+      "title": "Warmup Policy",
+      "type": "string"
+    },
+    "failure_policy": {
+      "title": "Failure Policy",
+      "type": "string"
+    },
+    "privacy": {
+      "additionalProperties": true,
+      "title": "Privacy",
+      "type": "object"
+    },
+    "manifest_sha256": {
+      "title": "Manifest Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "plan",
+    "dataset_limitation",
+    "environment",
+    "hardware",
+    "cache_policy",
+    "warmup_policy",
+    "failure_policy",
+    "privacy",
+    "manifest_sha256"
+  ],
+  "title": "RunManifest",
+  "type": "object"
+}

@@ -1,5 +1,6 @@
 import json
 import urllib.request
+
 import pytest
 
 MODEL_URL = "http://10.0.4.32:8000/v1/chat/completions"
@@ -21,7 +22,7 @@ def extract_content(body):
 @pytest.mark.integration
 def test_decompose_big_task_into_small_calls():
     # Big task
-    big_task = "Explain DAGs, give a concrete example, and list three real-world use cases."
+    _big_task = "Explain DAGs, give a concrete example, and list three real-world use cases."
     
     # Decompose into sub-tasks
     subs = [

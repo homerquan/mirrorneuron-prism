@@ -1,6 +1,2 @@
 def select_best(candidates):
-    if not candidates:
-        return None
-    # Simple first candidate selector
-    return candidates[0]
-
+    raise NotImplementedError("Candidate selection requires an implemented judge")

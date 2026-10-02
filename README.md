@@ -1,131 +1,42 @@
-# mirrorneuron-prism
+# MirrorNeuron Prism
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-3388FF.svg)](https://github.com/astral-tools/ruff)
+Prism is a Python 3.11+ package for bounded inference through LiteLLM. This release implements the dependable CLI and a standalone, local CPU decision experiment using JEV-CPU's pinned SemIf scorer.
 
-Bounded multi-call inference as a transparent LiteLLM Proxy extension.  
-Transform any OpenAI-compatible client call into several bounded LLM calls, select or fuse the results, and return one ordinary completion — with zero client changes.
+**Generative multicall execution is still planned.** The former dummy completion and first-candidate selector now fail closed. Installing a controller does not activate CPU assistance in schema-v1 policies.
 
-## Features
+| Capability | Status |
+| --- | --- |
+| Strict project/policy validation, safe initialization, diagnostics | Implemented |
+| Explicit model preparation, CPU classification, bounded worker | Experimental, implemented |
+| Native authored/shape fixtures, immutable plans, reports, calibration | Experimental, implemented |
+| Shared-prefix and constrained one-token generation treatments | Experimental; parity tested on pinned Qwen3-0.6B |
+| Generative engine, CPU/LLM fallback, full agent benchmarks | Planned; unavailable commands are not registered |
+| Legacy buffered demo forwarder | Deprecated, loopback only; no streaming |
 
-- **Transparent** – drop-in OpenAI compatible proxy, no SDK changes
-- **Strategies** – Best-of-N, Adaptive, Consensus. More strategies coming.
-- **Budgeting & deadlines** – token, call and time limits per logical request
-- **LLM Judge & Verifiers** – pluggable selection with safety checks
-- **Metering & cost estimation** – per-model usage tracking offline
-- **Zero config** – just add a custom provider and a policy file
-
-## Quick Start
+Install from this checkout:
 
 ```bash
-# install
-pip install "mirrorneuron-prism[proxy]"
-
-# generate configs
-mn_prism init --out-dir .
-
-# validate configs
-mn_prism validate --policy-config multicall.yaml --litellm-config litellm.yaml
+python -m pip install -e '.[dev]'
+mn_prism init --template cpu-bench --out-dir ./cpu-experiment
+mn_prism --config ./cpu-experiment/prism.yaml config validate
+mn_prism --config ./cpu-experiment/prism.yaml doctor --format json
 ```
 
-### Quick demo proxy
+Initialization never downloads weights and refuses existing files unless `--force` is supplied. CPU dependencies are optional; see [HOW_TO_USE.md](HOW_TO_USE.md) for tested constraints, explicit preparation, experiments, and calibration.
 
-Run a local OpenAI-compatible proxy from a JSON model registry:
+`mn_prism`, `python -m litellm_multicall`, and `litellm_multicall.cli:main(argv)` share one CLI. Running without arguments retains version-only behavior. The root launcher delegates; its old `python mn_prism.py --file ...` grammar selects the deprecated demo.
+
+Help, version, configuration inspection, and benchmark listing never import Torch or load a model. Machine output is versioned JSON/JSONL; child/library logs go to stderr. Configuration and exported metadata redact secrets.
+
+The LiteLLM launcher preserves complete physical model definitions, callbacks, authentication, and child exit status. It refuses configurations requesting unfinished multicall inference. It never creates another Router or silently supplies a test master key. Bind defaults changed to `127.0.0.1`; non-loopback LiteLLM serving requires genuine authentication.
+
+JEV-CPU is an independent SemIf CPU adaptation, not TypeSafe's Jev. Only three reviewed scoring modules are vendored unchanged, with [license and provenance](src/litellm_multicall/_vendor/semif/UPSTREAM.json). Model weights remain separately prepared local artifacts and retain their upstream terms.
+
+Run offline tests:
 
 ```bash
-mn_prism serve --file models/muse-gemma-mix.json --port 4001 --host 0.0.0.0
+python -m pytest -q
+python -m ruff check src tests
 ```
 
-Then test with curl:
-```bash
-curl http://localhost:4001/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-test" \
-  -d '{"model":"muse-glimmer-30b","messages":[{"role":"user","content":"Hi"}]}'
-```
-
-### Full LiteLLM Proxy with MultiCall
-
-Generate configs automatically:
-
-```bash
-mn_prism init --out-dir .
-```
-
-This creates `litellm.yaml` and `multicall.yaml`. The `multicall` provider is auto-registered via the `litellm_provider` entry-point, so no `custom_provider_map` is needed.
-
-Start LiteLLM Proxy with the one-liner:
-
-```bash
-mn_prism proxy --port 4000 --model-name smart-local
-```
-
-Or start it the classic way:
-
-```bash
-export LITELLM_MASTER_KEY=sk-test
-python -m litellm.proxy --config litellm.yaml --port 4000
-```
-
-`litellm.yaml` generated by `init`:
-```yaml
-# Auto-generated by mn_prism init
-# Provider is auto-registered via entry-point litellm_provider.multicall
-model_list:
-  - model_name: smart-local
-    litellm_params:
-      model: multicall/default
-```
-
-Client code stays unchanged:
-
-```python
-from openai import OpenAI
-client = OpenAI(base_url="http://localhost:4000/v1", api_key="sk-test")
-resp = client.chat.completions.create(
-    model="smart-local",
-    messages=[{"role":"user","content":"Explain DAGs"}]
-)
-print(resp.choices[0].message.content)
-```
-
-```bash
-curl http://localhost:4000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-test" \
-  -d '{"model":"smart-local","messages":[{"role":"user","content":"Explain DAGs"}],"temperature":0.7}'
-```
-
-## Installation
-
-```bash
-pip install "mirrorneuron-prism[proxy]"
-```
-
-Development:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[proxy,dev]"
-```
-
-## Project Layout
-
-```
-src/litellm_multicall/
-  provider.py  hooks.py  config.py  types.py  engine.py  backend.py
-  budgets.py   selection.py  validation.py  streaming.py  telemetry.py
-  compat/      resources/
-```
-
-## Docs
-
-- [SPEC.md](SPEC.md) – full specification
-- [HOW_TO_USE.md](HOW_TO_USE.md) – operator guide
-- `examples/` – sample LiteLLM and MultiCall configs
-
-## License
-
-MIT – see [LICENSE](LICENSE)
+Real model and external endpoint tests are opt-in. The legacy endpoint smoke tests do not validate Prism's unfinished generative engine. See [implementation status](docs/implementation-status.md) for scope and limitations. [SPEC.md](SPEC.md) remains an architecture specification, not a list of working features.

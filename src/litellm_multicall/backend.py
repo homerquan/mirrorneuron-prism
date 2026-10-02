@@ -1,5 +1,7 @@
 from typing import Any, Protocol
+
 from litellm import ModelResponse
+
 
 class CompletionBackend(Protocol):
     async def complete(

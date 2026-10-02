@@ -1,8 +1,12 @@
 # Example LiteLLM config
 # Provider is auto-registered via entry-point litellm_provider.multicall
 model_list:
+  - model_name: local-small
+    litellm_params:
+      model: openai/local-small
+      api_base: http://127.0.0.1:8000/v1
+      api_key: os.environ/LOCAL_LLM_API_KEY
   - model_name: smart-local
     litellm_params:
       model: multicall/default
       num_retries: 0
-

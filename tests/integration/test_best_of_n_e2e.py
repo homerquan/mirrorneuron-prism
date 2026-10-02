@@ -1,5 +1,6 @@
 import json
 import urllib.request
+
 import pytest
 
 MODEL_A_URL = "http://10.0.4.32:8000/v1/chat/completions"

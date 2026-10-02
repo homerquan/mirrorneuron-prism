@@ -1,6 +1,3 @@
-# Hooks stub
-class _Dummy:
-    pass
+from litellm.integrations.custom_logger import CustomLogger
 
-multicall_hooks = _Dummy()
-
+multicall_hooks = CustomLogger()

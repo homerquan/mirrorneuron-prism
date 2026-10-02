@@ -1,0 +1,6 @@
+# Candidate recipe only; Linux hardware was not available for platform validation.
+# Install Torch explicitly from https://download.pytorch.org/whl/cpu first.
+torch==2.10.0
+transformers==5.17.0
+huggingface-hub==1.33.0
+safetensors==0.8.0

@@ -17,6 +17,12 @@ dependencies = [
 
 [project.optional-dependencies]
 proxy = ["litellm[proxy]>=1,<2"]
+classifier-jevcpu = [
+  "torch>=2.10,<2.11",
+  "transformers>=5.17,<5.18",
+  "huggingface-hub>=1,<2",
+  "safetensors>=0.7,<1",
+]
 dev = [
   "build",
   "twine",
@@ -39,3 +45,13 @@ packages = ["src/litellm_multicall"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = ["integration: requires explicitly enabled external endpoints", "real_model: requires prepared local CPU weights and optional dependencies"]
+addopts = "-m 'not integration and not real_model'"
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = ["src/litellm_multicall/_vendor"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
