@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .errors import PrismError
+from .errors import OptimizationConfigurationError, PrismError
 from .policies import PolicyName
 
 
@@ -26,6 +26,7 @@ class RawModel(StrictModel):
     max_output_tokens: int = Field(default=4096, ge=1)
     safety_margin: int = Field(default=256, ge=0)
     concurrency: int = Field(default=2, ge=1, le=128)
+    enable_thinking: bool | None = Field(default=None, strict=True)
     # Admission uses an explicit UTF-8 byte bound, including framing overhead.
     # Operators must validate this bound against their backend tokenizer/template.
     tokens_per_byte_bound: float = Field(default=1.0, ge=1.0)
@@ -41,6 +42,7 @@ class RawModel(StrictModel):
     )
     input_cost_per_million: float | None = Field(default=None, ge=0)
     output_cost_per_million: float | None = Field(default=None, ge=0)
+    power_rating: int | None = Field(default=None, ge=1, le=10, strict=True)
 
     @model_validator(mode="after")
     def endpoint(self):
@@ -85,13 +87,55 @@ class Limits(StrictModel):
     max_parallel: int = Field(default=2, ge=1, le=128)
 
 
+class OptimizationConfig(StrictModel):
+    model_ids: list[str] = Field(min_length=1)
+    default_cost_priority: float = Field(default=0.5, ge=0, le=1, strict=True)
+    enforce_stage_power_order: bool = Field(default=True, strict=True)
+
+    @model_validator(mode="after")
+    def unique_models(self):
+        if any(not ref for ref in self.model_ids) or len(set(self.model_ids)) != len(
+            self.model_ids
+        ):
+            raise ValueError("optimization model_ids must be nonempty and unique")
+        return self
+
+
+class EvidenceCompaction(StrictModel):
+    model: str
+    output_tokens: int = Field(default=512, ge=128, strict=True)
+    memory_max_bytes: int = Field(default=1024, ge=128, le=16384, strict=True)
+    max_calls: int = Field(default=16, ge=1, le=256, strict=True)
+
+
+class EvidenceReduction(StrictModel):
+    model: str
+    max_input_tokens: int = Field(default=8000, ge=1024, strict=True)
+    output_tokens: int = Field(default=1024, ge=128, strict=True)
+    state_max_tokens: int = Field(default=1024, ge=256, le=4096, strict=True)
+    fanout: int = Field(default=8, ge=2, le=32, strict=True)
+    max_calls: int = Field(default=16, ge=1, le=256, strict=True)
+    lookup_rounds: int = Field(default=2, ge=0, le=8, strict=True)
+    evidence_max_tokens: int = Field(default=1024, ge=256, strict=True)
+    verification_max_extra_calls: int = Field(default=32, ge=0, le=256, strict=True)
+
+
 class Profile(StrictModel):
     direct: str
     worker: str | None = None
+    worker_fallback: str | None = None
+    evidence_compaction: EvidenceCompaction | None = None
+    evidence_reduction: EvidenceReduction | None = None
     synthesizer: str | None = None
     verifier: str | None = None
     strategy: Literal[
-        "auto", "direct", "evidence_map", "batched_map", "verified_map", "retrieve_read"
+        "auto",
+        "direct",
+        "evidence_map",
+        "batched_map",
+        "verified_map",
+        "retrieve_read",
+        "draft_review",
     ] = "auto"
     allowed_policies: list[PolicyName] = Field(
         default_factory=lambda: [
@@ -109,6 +153,8 @@ class Profile(StrictModel):
     public_max_output_tokens: int = Field(default=2048, ge=1)
     worker_output_tokens: int = Field(default=1024, ge=128)
     partition_bytes: int = Field(default=6000, ge=128)
+    intermediate_max_bytes: int = Field(default=4096, ge=1, le=65536)
+    optimization: OptimizationConfig | None = None
     limits: Limits = Field(default_factory=Limits)
 
 
@@ -146,6 +192,25 @@ class ModelFile(StrictModel):
     models: list[RawModel]
 
 
+def validate_optimization(profile, models):
+    if profile.optimization is None:
+        return
+    for ref in profile.optimization.model_ids:
+        model = models.get(ref)
+        if model is None:
+            raise OptimizationConfigurationError(
+                "optimization references an unknown raw model"
+            )
+        if (
+            model.power_rating is None
+            or model.input_cost_per_million is None
+            or model.output_cost_per_million is None
+        ):
+            raise OptimizationConfigurationError(
+                "optimization requires power_rating and both model prices"
+            )
+
+
 def load_config(path):
     path = Path(path).resolve()
     config = PrismConfig.model_validate(json.loads(path.read_text()))
@@ -177,28 +242,48 @@ def load_config(path):
             if same_host and port == target_port:
                 raise ValueError("self-referential Prism backend endpoint")
     for alias, profile in config.profiles.items():
+        validate_optimization(profile, models)
         if not alias or any(
             ref and ref not in models
             for ref in (
                 profile.direct,
                 profile.worker,
+                profile.worker_fallback,
                 profile.synthesizer,
                 profile.verifier,
+                profile.evidence_compaction.model
+                if profile.evidence_compaction
+                else None,
+                profile.evidence_reduction.model
+                if profile.evidence_reduction
+                else None,
             )
         ):
             raise ValueError("profile references an unknown raw model")
-        for ref in {profile.direct, profile.synthesizer or profile.direct}:
-            if profile.public_max_output_tokens > models[ref].max_output_tokens:
-                raise ValueError("public output cap exceeds backend output cap")
-        worker = models[profile.worker or profile.direct]
-        if profile.worker_output_tokens > worker.max_output_tokens:
-            raise ValueError("worker output cap exceeds backend output cap")
-        verifier = models[profile.verifier or profile.worker or profile.direct]
-        if (
-            "verified_map" in profile.allowed_policies
-            and profile.worker_output_tokens > verifier.max_output_tokens
-        ):
-            raise ValueError("verification output cap exceeds backend output cap")
+        # Optimized assignments are admitted per request/output size. Unused
+        # legacy stage references must not constrain heterogeneous model pools.
+        if profile.optimization is None:
+            for ref in {profile.direct, profile.synthesizer or profile.direct}:
+                if profile.public_max_output_tokens > models[ref].max_output_tokens:
+                    raise ValueError("public output cap exceeds backend output cap")
+            worker = models[profile.worker or profile.direct]
+            if profile.worker_output_tokens > worker.max_output_tokens:
+                raise ValueError("worker output cap exceeds backend output cap")
+            if profile.worker_fallback:
+                fallback = models[profile.worker_fallback]
+                if profile.worker_output_tokens > fallback.max_output_tokens:
+                    raise ValueError("worker output cap exceeds fallback output cap")
+                if (
+                    worker.power_rating is not None
+                    and fallback.power_rating is not None
+                    and fallback.power_rating < worker.power_rating
+                ):
+                    raise ValueError("worker fallback must be at least as powerful")
+            verifier = models[profile.verifier or profile.worker or profile.direct]
+            if {"verified_map", "draft_review"} & set(
+                profile.allowed_policies
+            ) and profile.worker_output_tokens > verifier.max_output_tokens:
+                raise ValueError("verification output cap exceeds backend output cap")
         if profile.strategy == "retrieve_read" and profile.coverage != "focused":
             raise ValueError("retrieve_read requires explicitly focused coverage")
         if len(set(profile.allowed_policies)) != len(profile.allowed_policies):

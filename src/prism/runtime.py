@@ -1,6 +1,7 @@
 """Atomic multi-resource reservations and bounded, dependency-checked plans."""
 
 import asyncio
+import math
 import time
 from dataclasses import dataclass, field
 
@@ -16,12 +17,14 @@ class Reservation:
     cost_usd: float | None
     started: bool = False
     finished: bool = False
+    started_ms: float | None = None
 
 
 class Ledger:
     def __init__(self, limits):
         self.limits = limits
-        self.deadline = time.monotonic() + limits.deadline_seconds
+        self.created = time.monotonic()
+        self.deadline = self.created + limits.deadline_seconds
         self.lock = asyncio.Lock()
         self.reservations = {}
         self.consumed = dict(calls=0, input_tokens=0, output_tokens=0, cost_usd=0.0)
@@ -53,13 +56,17 @@ class Ledger:
                 if known_price
                 else None
             )
+            if cost is not None and not math.isfinite(cost):
+                raise PrismError("non-finite plan cost estimate", "resource_limit", 413)
             outstanding = [r for r in self.reservations.values() if not r.finished]
             proposals = {
                 "calls": 1 + sum(1 for r in outstanding),
                 "input_tokens": input_tokens + sum(r.input_tokens for r in outstanding),
                 "output_tokens": output_tokens
                 + sum(r.output_tokens for r in outstanding),
-                "cost_usd": (cost or 0) + sum(r.cost_usd or 0 for r in outstanding),
+                "cost_usd": math.fsum(
+                    [cost or 0, *(r.cost_usd or 0 for r in outstanding)]
+                ),
             }
             for dimension, amount in proposals.items():
                 limit = getattr(self.limits, f"max_{dimension}")
@@ -82,8 +89,16 @@ class Ledger:
             if not self.remaining_seconds():
                 raise PrismError("request deadline exceeded", "deadline_exceeded", 504)
             reservation.started = True
+            reservation.started_ms = (time.monotonic() - self.created) * 1000
 
-    async def finish(self, reservation, usage=None, status="complete", elapsed_ms=None):
+    async def finish(
+        self,
+        reservation,
+        usage=None,
+        status="complete",
+        elapsed_ms=None,
+        diagnostics=None,
+    ):
         async with self.lock:
             if reservation.finished:
                 return
@@ -114,10 +129,13 @@ class Ledger:
                     "reserved_output_tokens": reservation.output_tokens,
                     "cost_upper_estimate_usd": reservation.cost_usd,
                     "elapsed_ms": elapsed_ms,
+                    "started_ms": reservation.started_ms,
+                    "finished_ms": (time.monotonic() - self.created) * 1000,
                     "cancellation_requested": status == "cancelled",
                     "remote_cancellation_confirmed": False
                     if status == "cancelled"
                     else None,
+                    **(diagnostics or {}),
                 }
             )
             if valid_usage and (
@@ -161,7 +179,9 @@ class Plan:
     nodes: tuple[PlanNode, ...]
     max_depth: int = 3
     allowed_operators: frozenset[str] = field(
-        default=frozenset({"generate", "extract", "verify", "synthesize"})
+        default=frozenset(
+            {"generate", "extract", "verify", "synthesize", "draft", "review"}
+        )
     )
 
     def validate(self, max_nodes):

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "models_file": "models.json",
+  "profiles": {
+    "prism-optimized": {
+      "direct": "small",
+      "worker": "small",
+      "synthesizer": "strong",
+      "verifier": "strong",
+      "strategy": "auto",
+      "allowed_policies": ["direct", "evidence_map", "batched_map", "verified_map", "draft_review"],
+      "optimization": {
+        "model_ids": ["small", "strong"],
+        "default_cost_priority": 0.5
+      },
+      "intermediate_max_bytes": 4096
+    }
+  }
+}

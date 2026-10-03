@@ -277,6 +277,9 @@ async def sample(client, case, *, alias, base_url, output_tokens, temperature, m
         content = record["response"]["choices"][0]["message"].get("content") or ""
     record["quality"] = grade(case, content, record["completed"])
     record["work"] = work_and_cost(record["trace"], models)
+    from .benchmark_stages import stage_measurements
+
+    record["stages"] = stage_measurements(record["trace"])
     return record
 
 
@@ -294,6 +297,8 @@ def mean(values):
 
 
 def summarize(records):
+    from .benchmark_stages import summarize_stages
+
     result = {
         "schema_version": SCHEMA_VERSION,
         "quality_revision": QUALITY_REVISION,
@@ -318,12 +323,16 @@ def summarize(records):
         total = sum(known_costs) if len(known_costs) == len(route) and route else None
         result["routes"][label] = {
             "model": route[0]["model"] if route else None,
+            "stages": summarize_stages(route),
             "requests": len(route),
             "completed": len(completed),
             "failures": len(route) - len(completed),
             "truncated": sum(record["finish_reason"] == "length" for record in route),
             "quality": {
                 "mean_score": mean([record["quality"]["score"] for record in route]),
+                "completed_mean_score": mean(
+                    [record["quality"]["score"] for record in completed]
+                ),
                 "passed": passed,
                 "pass_rate": passed / len(route) if route else None,
             },
@@ -426,10 +435,19 @@ def report_table(summary):
 
 
 def write_report(folder, manifest, summary):
+    from .benchmark_stages import stages_table
+
     text = (
         f"# Prism benchmark {manifest['run_id']}\n\nStatus: {manifest['status']}. "
         f"Measured requests exclude {manifest['settings']['warmup']} warmup pair(s).\n\n"
         + report_table(summary)
+        + "\n\n"
+        + stages_table(summary)
+        + "\n\nStage call times include backend queueing and HTTP processing. Parallel call times overlap; "
+        "phase wall time uses recorded start/finish intervals and is unknown for older traces. "
+        "Decision inference is skipped for a sole eligible policy. Decision usage is retained separately "
+        "in each trace; it is not included in backend token costs. Backend completion is not a stage quality score: "
+        "independent quality checks grade the final answer, while intermediate validation failures remain visible.\n"
         + "\n\nQuality is a deterministic reference rubric, not a general semantic judge. "
         "Failures and truncated answers score zero. Latency includes HTTP generation time; "
         "trace retrieval is excluded. Throughput is sequential, not a concurrent load test.\n\n"
@@ -516,6 +534,13 @@ async def run(
         "prism_version": __version__,
         "implementation_sha256": hashlib.sha256(
             Path(__file__).read_bytes()
+        ).hexdigest(),
+        "prism_source_sha256": {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(Path(__file__).parent.glob("*.py"))
+        },
+        "stage_metrics_implementation_sha256": hashlib.sha256(
+            Path(__file__).with_name("benchmark_stages.py").read_bytes()
         ).hexdigest(),
         "environment": {
             "python": platform.python_version(),

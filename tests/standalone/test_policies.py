@@ -70,7 +70,10 @@ class Backend:
                 text="".join("data: " + json.dumps(event) + "\n\n" for event in events)
                 + "data: [DONE]\n\n",
             )
-        if body.get("response_format", {}).get("type") != "json_object":
+        if body.get("response_format", {}).get("type") not in {
+            "json_object",
+            "json_schema",
+        }:
             return httpx.Response(
                 200,
                 json=completion(

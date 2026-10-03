@@ -1,6 +1,6 @@
 # Prism
 
-Prism is a standalone OpenAI-compatible LLM proxy with five bounded execution policies. A required CPU Laya model chooses among feasible plans: direct execution, independent evidence mapping, batched mapping, verified mapping, and focused retrieval. Workers extract source-backed facts; Prism checks their quotes against immutable source bytes. The client receives one ordinary assistant response.
+Prism is a standalone OpenAI-compatible LLM proxy with six bounded execution policies. A required CPU Laya model chooses among feasible plans: direct execution, independent evidence mapping, batched mapping, verified mapping, focused retrieval, and draft/review/synthesis. Optional cost/power optimization selects stage models from an operator allowlist using JSON ratings and prices plus Laya's task recommendation. Workers extract source-backed facts; Prism checks their quotes against immutable source bytes. The client receives one ordinary assistant response.
 
 The distribution is **`mirrorneuron-prism`**, the Python package is **`prism`**, and the CLI is **`prism`**. The service connects directly to OpenAI-compatible model servers. A stronger synthesizer is optional; all stages can share one local model. No dependency on MirrorNeuron, OtterDesk, or the local Laya source checkout is required.
 
@@ -75,6 +75,31 @@ print(response.choices[0].message.content)
 
 Text conversations, system/developer roles, JSON output, function tools, and SSE are supported on the declared backend capabilities. Caller tools are returned to the caller for execution. Unsupported fields, modalities, `n > 1`, malformed tool relationships, and oversized instructions fail before dispatch. Tool calls, seeds, logprobs, token-ID bias, and reasoning controls require an untransformed direct route. Responses API is not implemented.
 
+## Automatic model selection by cost and power
+
+Add `power_rating` (integer 1–10) and both existing token prices to the model JSON, then opt a profile into `optimization`:
+
+```json
+"optimization": {
+  "model_ids": ["small", "strong"],
+  "default_cost_priority": 0.5
+}
+```
+
+Each request can change the balance through `context_management`. A priority of `0.8` weights cost 80% and power 20%; `0` favors power and `1` selects the cheapest feasible plan. Use the Python SDK's `extra_body`:
+
+```python
+response = client.chat.completions.create(
+    model="prism-optimized",
+    messages=[{"role": "user", "content": "Explain the tradeoffs of this design."}],
+    extra_body={"context_management": [{"prism_cost_priority": 0.8}]},
+)
+```
+
+Prism evaluates direct and permitted multi-stage plans, checks their capabilities/context/budgets, and chooses models for each stage. Laya sees the best assignment for each eligible policy and supplies a bounded task-fit bonus. Calls can also narrow allowed models/policies or tighten cost/call limits. List `draft_review` in `allowed_policies` to enable three-stage drafting, structured critique, and final synthesis for ordinary source-free prompts. Tools and other direct-only features still select among eligible direct models.
+
+Ratings and task fit are heuristics; costs use conservative reservations, not predicted provider bills. Legacy profiles keep their existing routing. Current deployment models are left without invented ratings or prices. See [configuration, scoring, and request controls](docs/model-optimization.md) and the [illustrative JSON configuration](examples/standalone/optimization/prism.json). This is a Prism Chat Completions extension; it does not implement OpenAI compaction or Responses.
+
 ## Large source input
 
 Explicit boundaries identify data without guessing which part of a long message is the user's instruction. Instructions before and after the blocks retain their roles and order. Multiple blocks and text content parts are supported.
@@ -95,7 +120,7 @@ response = client.chat.completions.create(
 
 Prism stores original content unchanged for the request lifetime and partitions source blocks losslessly at paragraph/record boundaries where possible. It reserves finalization before starting workers. Every worker must finish without truncation, return valid typed JSON, report no unresolved needs, and provide quotes that resolve uniquely against original UTF-8 spans. Every required partition must pass these checks. Equal-looking records from distinct spans retain their multiplicity.
 
-The map policies include all validated evidence in final synthesis. If it does not fit, Prism returns a resource/context error. `retrieve_read` instead answers from selected original spans and requires explicit `coverage: "focused"`; it cannot satisfy exhaustive coverage. A matching quote establishes provenance, not the truth of the worker's interpretation, and full partition submission is not proof of extraction recall. Verification adds an independent model check but does not guarantee correctness. Cross-partition dependency repair and exact aggregation are future work. Count/exhaustive-inventory requests require direct execution when the original request fits.
+The map policies include all validated evidence in final synthesis. Optional [structured reduction](docs/structured-reduction.md) uses bounded observations, a recursive reduce tree, and raw-evidence lookup from temporary Markdown files to avoid an oversized reducer. Without reduction, oversized synthesis fails visibly. `retrieve_read` instead answers from selected original spans and requires explicit `coverage: "focused"`; it cannot satisfy exhaustive coverage. A matching quote establishes provenance, not the truth of the worker's interpretation, and full partition submission is not proof of extraction recall. Verification adds an independent model check but does not guarantee correctness. Cross-partition dependency repair and exact aggregation are future work. Count/exhaustive-inventory requests require direct execution when the original request fits.
 
 ## Laya decisions
 
@@ -115,7 +140,7 @@ The `X-Request-ID` header identifies an authenticated, metadata-only trace:
 prism trace show prism-REQUEST_ID
 ```
 
-Traces expose eligible policies, the selected graph, Laya proposals and timing, source hashes, coverage, backend identities, provider-reported usage, unknown usage, cancellations, and cost upper estimates. `X-Prism-Policy` and `X-Prism-Coverage` identify execution on the response. Traces omit source text, prompts, evidence quotes, and credentials. Storage is in memory, scoped to the authenticated credential, with configurable capacity and TTL. Rotating the credential invalidates access to prior traces. Consumed work with missing usage is conservatively charged to resource reservations, never reported as zero provider usage. Price/usage bounds are operator assumptions; unknown billing is labeled explicitly.
+Traces expose eligible policies, the selected graph, Laya proposals and timing, source hashes, coverage, backend identities, provider-reported usage, unknown usage, cancellations, and cost upper estimates. Optimized traces also include effective controls, candidate stage models/ratings, score components, and the selection reason. `X-Prism-Policy` and `X-Prism-Coverage` identify execution on the response. Traces omit source text, prompts, evidence quotes, and credentials. Storage is in memory, scoped to the authenticated credential, with configurable capacity and TTL. Rotating the credential invalidates access to prior traces. Consumed work with missing usage is conservatively charged to resource reservations, never reported as zero provider usage. Price/usage bounds are operator assumptions; unknown billing is labeled explicitly.
 
 ## Evaluation and release
 
@@ -131,6 +156,8 @@ prism benchmark compare benchmark-results/run-a benchmark-results/run-b \
 ```
 
 The default compares `prism-direct` with `prism-evidence`, using three repetitions, one warmup pair, and the same answer budget. Pass `--candidate prism-batched`, `prism-verified`, or `prism-retrieve` to compare another fixed policy; `--candidate prism` measures active Laya routing. Cost stays unknown until physical usage and configured model prices are available. Read [benchmark instructions and metric definitions](docs/benchmarking.md) before interpreting speed, quality, or cost differences.
+
+For repeatable local/Spark Docker Model Runner Gemma4 + Spark Nemotron tests, run `.venv/bin/python examples/standalone/docker-spark/benchmark.py --repeats 3`. The [runner instructions](examples/standalone/docker-spark/README.md) cover direct, mixed evidence, automatic small-context partitioning, and draft/review suites, with per-stage timing, Laya decisions, coverage, completion/quality, and physical-token cost proxies. The runner defaults to structured reduction; use `--reduction rolling` for a controlled alternative.
 
 ```sh
 python -m pip install '.[dev]'

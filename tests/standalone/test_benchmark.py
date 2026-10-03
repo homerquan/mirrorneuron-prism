@@ -86,7 +86,10 @@ def configuration(tmp_path, backend_url="http://fixture"):
 
 
 def respond(body):
-    if body.get("response_format", {}).get("type") == "json_object":
+    fmt = body.get("response_format", {})
+    if fmt.get("type") == "json_object" or fmt.get("json_schema", {}).get(
+        "name", ""
+    ).startswith("prism_"):
         partition = json.loads(body["messages"][-1]["content"])
         content = {
             "status": "complete",

@@ -4,7 +4,12 @@ import re
 from typing import Literal
 
 PolicyName = Literal[
-    "direct", "evidence_map", "batched_map", "verified_map", "retrieve_read"
+    "direct",
+    "evidence_map",
+    "batched_map",
+    "verified_map",
+    "retrieve_read",
+    "draft_review",
 ]
 
 POLICIES = {
@@ -13,6 +18,7 @@ POLICIES = {
     "batched_map": "Group short source partitions into fewer extraction calls, then synthesize complete evidence",
     "verified_map": "Extract each partition, independently check its facts against quotes, then synthesize",
     "retrieve_read": "Lexically select relevant source partitions for a focused lookup, then answer from original spans",
+    "draft_review": "Draft an answer, review it for issues and improvements, then synthesize the final answer",
 }
 
 STOP_WORDS = set(

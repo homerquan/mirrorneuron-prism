@@ -1,0 +1,49 @@
+{
+  "models": [
+    {
+      "id": "gemma",
+      "name": "ai/gemma4:E2B",
+      "base_url": "http://127.0.0.1:12434/engines/v1",
+      "context_window": 32768,
+      "max_output_tokens": 2048,
+      "enable_thinking": false,
+      "concurrency": 1
+    },
+    {
+      "id": "nemotron",
+      "name": "docker.io/ai/nemotron-3.5-lightning:latest",
+      "base_url": "http://127.0.0.1:12435/engines/v1",
+      "context_window": 8192,
+      "max_output_tokens": 2048,
+      "enable_thinking": false,
+      "concurrency": 1
+    },
+    {
+      "id": "gemma-small",
+      "name": "ai/gemma4:E2B",
+      "base_url": "http://127.0.0.1:12434/engines/v1",
+      "context_window": 8192,
+      "max_output_tokens": 2048,
+      "enable_thinking": false,
+      "concurrency": 1
+    },
+    {
+      "id": "nemotron-direct-small",
+      "name": "docker.io/ai/nemotron-3.5-lightning:latest",
+      "base_url": "http://127.0.0.1:12435/engines/v1",
+      "context_window": 8192,
+      "max_output_tokens": 2048,
+      "enable_thinking": false,
+      "concurrency": 1
+    },
+    {
+      "id": "nemotron-synth-small",
+      "name": "docker.io/ai/nemotron-3.5-lightning:latest",
+      "base_url": "http://127.0.0.1:12435/engines/v1",
+      "context_window": 8192,
+      "max_output_tokens": 2048,
+      "enable_thinking": false,
+      "concurrency": 1
+    }
+  ]
+}

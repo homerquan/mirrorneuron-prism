@@ -1,0 +1,26 @@
+{
+  "models": [
+    {
+      "id": "small",
+      "name": "replace-with-small-model",
+      "base_url": "http://127.0.0.1:8000/v1",
+      "context_window": 32768,
+      "max_output_tokens": 4096,
+      "capabilities": ["text", "stream", "tools", "json_object", "json_schema"],
+      "power_rating": 3,
+      "input_cost_per_million": 0.10,
+      "output_cost_per_million": 0.20
+    },
+    {
+      "id": "strong",
+      "name": "replace-with-strong-model",
+      "base_url": "http://127.0.0.1:8001/v1",
+      "context_window": 131072,
+      "max_output_tokens": 4096,
+      "capabilities": ["text", "stream", "tools", "json_object", "json_schema"],
+      "power_rating": 9,
+      "input_cost_per_million": 1.00,
+      "output_cost_per_million": 2.00
+    }
+  ]
+}

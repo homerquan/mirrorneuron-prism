@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import __version__
 from .config import load_config
-from .errors import PrismError
+from .errors import OptimizationConfigurationError, PrismError
 
 
 def parser():
@@ -290,6 +290,9 @@ def main(argv=None):
         return 0
     except PrismError as exc:
         emit(exc.body())
+        return 2
+    except OptimizationConfigurationError as exc:
+        emit({"error": {"code": "configuration_error", "message": str(exc)}})
         return 2
     except (ValueError, OSError, ImportError):
         # Pydantic and filesystem messages can include credentials or input values.

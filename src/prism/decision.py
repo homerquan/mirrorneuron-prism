@@ -128,6 +128,17 @@ class LayaDecision:
                 },
             }
         }
+        if features and "candidate_plans" in features:
+            questions["strategy"]["instructions"] = (
+                "Recommend the most adequate eligible plan that can finish the task, considering its assigned "
+                "models, ratings, conservative total cost, coverage, and prism_cost_priority "
+                "(0 favors power, 1 favors cost). Use draft_review for tasks benefiting from "
+                "critique, verified_map for disputed source interpretations, and direct for "
+                "self-contained tasks. Prism applies deterministic cost/power ranking; your "
+                "recommendation contributes a bounded task-fit bonus. Review and synthesis "
+                "are harder than partition extraction; consider the relative stage model "
+                "ratings. Abstain if uncertain."
+            )
         started = time.monotonic()
         try:
             async with self.lock:

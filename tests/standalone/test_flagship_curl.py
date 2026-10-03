@@ -70,7 +70,11 @@ class DocumentBackend:
                     }
                 ],
             )
-        if body.get("response_format", {}).get("type") == "json_schema":
+        fmt = body.get("response_format", {})
+        intermediate_schema = (
+            fmt.get("json_schema", {}).get("name", "").startswith("prism_")
+        )
+        if fmt.get("type") == "json_schema" and not intermediate_schema:
             return completion(
                 json.dumps(
                     {
@@ -80,7 +84,7 @@ class DocumentBackend:
                     }
                 )
             )
-        if body.get("response_format", {}).get("type") == "json_object":
+        if fmt.get("type") == "json_object" or intermediate_schema:
             partition = json.loads(body["messages"][-1]["content"])
             if "records" in partition:
                 return completion(

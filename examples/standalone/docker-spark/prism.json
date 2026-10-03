@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "models_file": "models.json",
+  "server": {
+    "host": "127.0.0.1",
+    "port": 18080,
+    "api_key_env": "PRISM_API_KEY"
+  },
+  "profiles": {
+    "gemma-direct": {
+      "public_max_output_tokens": 2048,
+      "worker_output_tokens": 1024,
+      "limits": {
+        "deadline_seconds": 300
+      },
+      "direct": "gemma",
+      "strategy": "direct"
+    },
+    "nemotron-direct": {
+      "public_max_output_tokens": 2048,
+      "worker_output_tokens": 1024,
+      "limits": {
+        "deadline_seconds": 300
+      },
+      "direct": "nemotron",
+      "strategy": "direct"
+    },
+    "mixed-evidence": {
+      "public_max_output_tokens": 2048,
+      "worker_output_tokens": 1024,
+      "limits": {
+        "deadline_seconds": 300
+      },
+      "direct": "nemotron",
+      "worker": "gemma",
+      "synthesizer": "nemotron",
+      "strategy": "evidence_map"
+    },
+    "mixed-review": {
+      "public_max_output_tokens": 2048,
+      "worker_output_tokens": 1024,
+      "limits": {
+        "deadline_seconds": 300
+      },
+      "direct": "nemotron",
+      "worker": "gemma",
+      "verifier": "nemotron",
+      "synthesizer": "nemotron",
+      "strategy": "draft_review",
+      "allowed_policies": [
+        "draft_review"
+      ],
+      "intermediate_max_bytes": 1024
+    },
+    "mixed-auto-small": {
+      "direct": "nemotron-direct-small",
+      "worker": "gemma-small",
+      "synthesizer": "nemotron-synth-small",
+      "worker_output_tokens": 1024,
+      "public_max_output_tokens": 2048,
+      "partition_bytes": 2400,
+      "limits": {
+        "deadline_seconds": 600,
+        "max_parallel": 2,
+        "max_output_tokens": 262144
+      },
+      "strategy": "auto",
+      "allowed_policies": [
+        "direct",
+        "evidence_map",
+        "batched_map",
+        "verified_map"
+      ],
+      "verifier": "nemotron-synth-small"
+    },
+    "nemotron-small-direct": {
+      "direct": "nemotron-direct-small",
+      "worker": "gemma-small",
+      "synthesizer": "nemotron-synth-small",
+      "worker_output_tokens": 1024,
+      "public_max_output_tokens": 2048,
+      "partition_bytes": 2400,
+      "limits": {
+        "deadline_seconds": 600,
+        "max_parallel": 2
+      },
+      "strategy": "direct"
+    },
+    "reverse-auto-small": {
+      "direct": "nemotron-direct-small",
+      "worker": "nemotron-direct-small",
+      "synthesizer": "gemma",
+      "worker_output_tokens": 1024,
+      "public_max_output_tokens": 2048,
+      "partition_bytes": 2400,
+      "limits": {
+        "deadline_seconds": 600,
+        "max_parallel": 2,
+        "max_output_tokens": 262144
+      },
+      "strategy": "auto",
+      "allowed_policies": [
+        "direct",
+        "evidence_map",
+        "batched_map",
+        "verified_map"
+      ],
+      "verifier": "nemotron-synth-small"
+    },
+    "small-evidence_map-gemma": {
+      "direct": "nemotron-direct-small",
+      "worker": "gemma-small",
+      "synthesizer": "nemotron-synth-small",
+      "worker_output_tokens": 1024,
+      "public_max_output_tokens": 2048,
+      "partition_bytes": 2400,
+      "limits": {
+        "deadline_seconds": 600,
+        "max_parallel": 2,
+        "max_output_tokens": 262144
+      },
+      "strategy": "evidence_map",
+      "allowed_policies": [
+        "evidence_map"
+      ],
+      "verifier": "nemotron-synth-small"
+    },
+    "small-batched_map-gemma": {
+      "direct": "nemotron-direct-small",
+      "worker": "gemma-small",
+      "synthesizer": "nemotron-synth-small",
+      "worker_output_tokens": 1024,
+      "public_max_output_tokens": 2048,
+      "partition_bytes": 2400,
+      "limits": {
+        "deadline_seconds": 600,
+        "max_parallel": 2,
+        "max_output_tokens": 262144
+      },
+      "strategy": "batched_map",
+      "allowed_policies": [
+        "batched_map"
+      ],
+      "verifier": "nemotron-synth-small"
+    },
+    "small-verified_map-gemma": {
+      "direct": "nemotron-direct-small",
+      "worker": "gemma-small",
+      "synthesizer": "nemotron-synth-small",
+      "worker_output_tokens": 1024,
+      "public_max_output_tokens": 2048,
+      "partition_bytes": 2400,
+      "limits": {
+        "deadline_seconds": 600,
+        "max_parallel": 2,
+        "max_output_tokens": 262144
+      },
+      "strategy": "verified_map",
+      "allowed_policies": [
+        "verified_map"
+      ],
+      "verifier": "nemotron-synth-small"
+    },
+    "small-retrieve_read-gemma": {
+      "direct": "nemotron-direct-small",
+      "worker": "gemma-small",
+      "synthesizer": "gemma",
+      "worker_output_tokens": 1024,
+      "public_max_output_tokens": 2048,
+      "partition_bytes": 2400,
+      "limits": {
+        "deadline_seconds": 600,
+        "max_parallel": 2,
+        "max_output_tokens": 262144
+      },
+      "strategy": "retrieve_read",
+      "allowed_policies": [
+        "retrieve_read"
+      ],
+      "verifier": "nemotron-synth-small",
+      "coverage": "focused",
+      "retrieval_top_k": 2
+    },
+    "small-evidence_map-nemotron": {
+      "direct": "nemotron-direct-small",
+      "worker": "nemotron-direct-small",
+      "synthesizer": "gemma",
+      "worker_output_tokens": 1024,
+      "public_max_output_tokens": 2048,
+      "partition_bytes": 2400,
+      "limits": {
+        "deadline_seconds": 600,
+        "max_parallel": 2,
+        "max_output_tokens": 262144
+      },
+      "strategy": "evidence_map",
+      "allowed_policies": [
+        "evidence_map"
+      ],
+      "verifier": "nemotron-synth-small"
+    },
+    "small-batched_map-nemotron": {
+      "direct": "nemotron-direct-small",
+      "worker": "nemotron-direct-small",
+      "synthesizer": "gemma",
+      "worker_output_tokens": 1024,
+      "public_max_output_tokens": 2048,
+      "partition_bytes": 2400,
+      "limits": {
+        "deadline_seconds": 600,
+        "max_parallel": 2,
+        "max_output_tokens": 262144
+      },
+      "strategy": "batched_map",
+      "allowed_policies": [
+        "batched_map"
+      ],
+      "verifier": "nemotron-synth-small"
+    },
+    "small-verified_map-nemotron": {
+      "direct": "nemotron-direct-small",
+      "worker": "nemotron-direct-small",
+      "synthesizer": "gemma",
+      "worker_output_tokens": 1024,
+      "public_max_output_tokens": 2048,
+      "partition_bytes": 2400,
+      "limits": {
+        "deadline_seconds": 600,
+        "max_parallel": 2,
+        "max_output_tokens": 262144
+      },
+      "strategy": "verified_map",
+      "allowed_policies": [
+        "verified_map"
+      ],
+      "verifier": "nemotron-synth-small"
+    },
+    "small-retrieve_read-nemotron": {
+      "direct": "nemotron-direct-small",
+      "worker": "nemotron-direct-small",
+      "synthesizer": "nemotron-synth-small",
+      "worker_output_tokens": 1024,
+      "public_max_output_tokens": 2048,
+      "partition_bytes": 2400,
+      "limits": {
+        "deadline_seconds": 600,
+        "max_parallel": 2,
+        "max_output_tokens": 262144
+      },
+      "strategy": "retrieve_read",
+      "allowed_policies": [
+        "retrieve_read"
+      ],
+      "verifier": "nemotron-synth-small",
+      "coverage": "focused",
+      "retrieval_top_k": 2
+    }
+  },
+  "decision": {
+    "mode": "route",
+    "model": "convaiinnovations/laya-typed-decisions",
+    "revision": "1a793eb568e6718f15941d08f85432581df534e3",
+    "min_option_confidence": 0.7
+  }
+}

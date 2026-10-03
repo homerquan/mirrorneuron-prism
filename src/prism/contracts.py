@@ -4,6 +4,71 @@ import json
 import math
 
 from .errors import PrismError
+from .policies import POLICIES
+
+CONTEXT_CONTROLS = {
+    "prism_cost_priority",
+    "prism_model_ids",
+    "prism_allowed_policies",
+    "prism_max_cost_usd",
+    "prism_max_calls",
+}
+
+
+def context_controls(value):
+    """Parse proxy-only controls; never include them in upstream inference parameters."""
+
+    def invalid(message, code="invalid_request"):
+        raise PrismError(message, code, param="context_management")
+
+    if not isinstance(value, list):
+        invalid("context_management must be an array of objects")
+    controls = {}
+    for entry in value:
+        if not isinstance(entry, dict) or not entry:
+            invalid("context_management entries must be nonempty objects")
+        if entry.get("type") == "compaction":
+            invalid("Prism does not implement compaction", "unsupported_feature")
+        if set(entry) - CONTEXT_CONTROLS:
+            invalid("unsupported context_management control", "unsupported_parameter")
+        if controls.keys() & entry.keys():
+            invalid("duplicate context_management control")
+        controls.update(entry)
+    for key in ("prism_cost_priority", "prism_max_cost_usd"):
+        if key in controls:
+            number = controls[key]
+            if type(number) not in {int, float}:
+                invalid("context_management control must be a finite number")
+            try:
+                finite = math.isfinite(number)
+            except OverflowError:
+                finite = False
+            if not finite:
+                invalid("context_management control must be a finite number")
+            if key == "prism_cost_priority" and not 0 <= number <= 1:
+                invalid("prism_cost_priority must be between 0 and 1")
+            if key == "prism_max_cost_usd" and number <= 0:
+                invalid("prism_max_cost_usd must be positive")
+    if "prism_max_calls" in controls and (
+        type(controls["prism_max_calls"]) is not int or controls["prism_max_calls"] < 1
+    ):
+        invalid("prism_max_calls must be a positive integer")
+    for key in ("prism_model_ids", "prism_allowed_policies"):
+        if key in controls:
+            refs = controls[key]
+            if (
+                not isinstance(refs, list)
+                or not refs
+                or any(not isinstance(ref, str) or not ref for ref in refs)
+                or len(set(refs)) != len(refs)
+            ):
+                invalid(
+                    "model and policy subsets must be nonempty unique string arrays"
+                )
+            if key == "prism_allowed_policies" and not set(refs) <= POLICIES.keys():
+                invalid("unknown Prism policy")
+    return controls
+
 
 PUBLIC_PARAMETERS = {
     "temperature",
@@ -48,6 +113,11 @@ def byte_tokens(value):
 
 
 def prompt_bound(messages, parameters, model):
+    if model.enable_thinking is not None:
+        parameters = {
+            **parameters,
+            "chat_template_kwargs": {"enable_thinking": model.enable_thinking},
+        }
     return (
         math.ceil(
             byte_tokens({"messages": messages, **parameters})
@@ -81,6 +151,7 @@ def validate_request(body):
         "max_tokens",
         "max_completion_tokens",
         "n",
+        "context_management",
     }
     unknown = set(body) - known
     if unknown:
@@ -89,6 +160,8 @@ def validate_request(body):
             "unsupported_parameter",
             param=sorted(unknown)[0],
         )
+    if "context_management" in body:
+        context_controls(body["context_management"])
     if not isinstance(body.get("model"), str) or not body["model"]:
         raise PrismError("model must be a virtual model alias", param="model")
     messages = body.get("messages")

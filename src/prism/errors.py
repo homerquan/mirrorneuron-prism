@@ -1,3 +1,7 @@
+class OptimizationConfigurationError(ValueError):
+    """Operator configuration error with a fixed, credential-free message."""
+
+
 class PrismError(Exception):
     """A sanitized, public error. Never include provider bodies or credentials."""
 

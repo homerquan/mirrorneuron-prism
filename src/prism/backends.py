@@ -11,14 +11,44 @@ from .contracts import parse_json
 from .errors import PrismError
 
 
-def provider_error(status):
+def provider_error(status, body=b""):
+    # Classify a bounded error body, but never expose its contents or credentials.
+    text = body.decode("utf-8", errors="ignore").lower()
+    if any(
+        marker in text
+        for marker in (
+            "context size has been exceeded",
+            "context_length_exceeded",
+            "exceeds the available context",
+            "exceed the available context",
+            "maximum context length",
+        )
+    ):
+        return PrismError(
+            "backend runtime context limit exceeded",
+            "upstream_context_length_exceeded",
+            502,
+        )
     if status in {401, 403}:
         return PrismError(
             "backend authentication failed", "upstream_authentication", 502
         )
     if status == 429:
         return PrismError("backend rate limit exceeded", "upstream_rate_limit", 429)
-    return PrismError("backend rejected or failed the request", "upstream_error", 502)
+    return PrismError(
+        f"backend rejected or failed the request (HTTP {status})", "upstream_error", 502
+    )
+
+
+async def response_error(response):
+    body = bytearray()
+    async for chunk in response.aiter_bytes():
+        body.extend(chunk[: 8192 - len(body)])
+        if len(body) >= 8192:
+            break
+    error = provider_error(response.status_code, body)
+    error.upstream_status = response.status_code
+    return error
 
 
 def validate_completion(data):
@@ -94,8 +124,14 @@ class OpenAIBackend:
             timeout=None, follow_redirects=False, trust_env=False
         )
         self.owned_client = client is None
+        # Aliases with different admission caps still use the same physical engine.
+        groups = {}
+        for model in models.values():
+            key = (model.base_url.rstrip("/"), model.name)
+            groups[key] = min(groups.get(key, model.concurrency), model.concurrency)
+        shared = {key: asyncio.Semaphore(limit) for key, limit in groups.items()}
         self.semaphores = {
-            key: asyncio.Semaphore(m.concurrency) for key, m in models.items()
+            ref: shared[(m.base_url.rstrip("/"), m.name)] for ref, m in models.items()
         }
 
     async def close(self):
@@ -109,6 +145,8 @@ class OpenAIBackend:
             **parameters,
             "stream": stream,
         }
+        if model.enable_thinking is not None and "reasoning_effort" not in parameters:
+            payload["chat_template_kwargs"] = {"enable_thinking": model.enable_thinking}
         # Preserve the requested upstream limit spelling on the direct route.
         if not ({"max_tokens", "max_completion_tokens"} & payload.keys()):
             payload["max_completion_tokens"] = output
@@ -129,6 +167,7 @@ class OpenAIBackend:
         started = time.monotonic()
         usage = None
         status = "failed"
+        diagnostics = {}
         try:
             async with self.semaphores[model.id]:
                 await ledger.start(reservation)
@@ -137,7 +176,7 @@ class OpenAIBackend:
                     response = await self.client.send(request, stream=True)
                     try:
                         if response.status_code != 200:
-                            raise provider_error(response.status_code)
+                            raise await response_error(response)
                         chunks = bytearray()
                         async for chunk in response.aiter_bytes():
                             chunks.extend(chunk)
@@ -147,8 +186,12 @@ class OpenAIBackend:
                                     "invalid_backend_output",
                                     502,
                                 )
-                        data = validate_completion(parse_json(chunks))
-                        usage = data.get("usage")
+                        data = parse_json(chunks)
+                        usage = data.get("usage") if isinstance(data, dict) else None
+                        data = validate_completion(data)
+                        diagnostics["finish_reason"] = data["choices"][0][
+                            "finish_reason"
+                        ]
                         status = "complete"
                         return data
                     finally:
@@ -165,16 +208,27 @@ class OpenAIBackend:
             raise PrismError(
                 "backend connection or protocol failure", "upstream_error", 502
             ) from exc
+        except PrismError as exc:
+            diagnostics.update(
+                error_code=exc.code,
+                upstream_status=getattr(exc, "upstream_status", None),
+            )
+            raise
         finally:
             with anyio.CancelScope(shield=True):
                 await ledger.finish(
-                    reservation, usage, status, (time.monotonic() - started) * 1000
+                    reservation,
+                    usage,
+                    status,
+                    (time.monotonic() - started) * 1000,
+                    diagnostics=diagnostics,
                 )
 
     async def stream(self, model, messages, parameters, output, ledger, reservation):
         started = time.monotonic()
         usage = None
         status = "failed"
+        diagnostics = {}
         try:
             async with self.semaphores[model.id]:
                 await ledger.start(reservation)
@@ -185,7 +239,7 @@ class OpenAIBackend:
                     )
                     try:
                         if response.status_code != 200:
-                            raise provider_error(response.status_code)
+                            raise await response_error(response)
                         # Bound each event before parsing; do not buffer the entire stream.
                         pending = bytearray()
                         finished_choice = False
@@ -284,6 +338,7 @@ class OpenAIBackend:
                                                 502,
                                             )
                                         finished_choice = True
+                                        diagnostics["finish_reason"] = finish
                                 yield data
                         raise PrismError(
                             "upstream stream interrupted", "incomplete_stream", 502
@@ -302,8 +357,18 @@ class OpenAIBackend:
             raise PrismError(
                 "backend connection or protocol failure", "upstream_error", 502
             ) from exc
+        except PrismError as exc:
+            diagnostics.update(
+                error_code=exc.code,
+                upstream_status=getattr(exc, "upstream_status", None),
+            )
+            raise
         finally:
             with anyio.CancelScope(shield=True):
                 await ledger.finish(
-                    reservation, usage, status, (time.monotonic() - started) * 1000
+                    reservation,
+                    usage,
+                    status,
+                    (time.monotonic() - started) * 1000,
+                    diagnostics=diagnostics,
                 )
