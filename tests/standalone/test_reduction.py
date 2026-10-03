@@ -339,6 +339,226 @@ def test_lazy_search_recovers_unmapped_utf8_facts_with_exact_excerpt_spans():
         store.close()
 
 
+def test_passage_search_ignores_early_keyword_distractors_and_finds_two_locations():
+    from prism.context import SourceArena
+
+    text = (
+        "Approval archive index: unrelated historical metadata.\n"
+        + "Routine telemetry only.\n" * 300
+        + "Standard deployments require José manager approval.\n"
+        + "Routine telemetry only.\n" * 300
+        + "Emergency deployments waive approval after incident commander notification.\n"
+    )
+    arena = SourceArena(
+        [{"role": "user", "content": "<prism-source>" + text + "</prism-source>"}]
+    )
+    store = EvidenceStore(arena, [])
+    try:
+        excerpts = store.retrieve([], "deployments approval", 1536)
+        assert any("José manager approval" in e["quote"] for e in excerpts)
+        assert any("incident commander notification" in e["quote"] for e in excerpts)
+        assert byte_tokens(excerpts) <= 1536
+        for excerpt in excerpts:
+            from prism.context import SourceRef
+
+            assert arena.resolve(SourceRef(**excerpt["source_ref"])) == excerpt["quote"]
+        explicit = store.retrieve(["raw-source-0000"], "manager approval", 768)
+        assert "José manager approval" in explicit[0]["quote"]
+        path = store.root / "source-0000.md"
+        path.write_text("changed")
+        with pytest.raises(PrismError, match="changed"):
+            store.retrieve([], "approval", 1536)
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_lookup_rounds_preserve_distinct_evidence_before_synthesis(monkeypatch):
+    monkeypatch.setenv("PRISM_API_KEY", "policy-key")
+    app, upstream, physical, config, models = setup()
+    configure(config, models, "evidence_map")
+    body = request("evidence_map")
+    body["messages"][0]["content"] += (
+        "<prism-source>Emergency rollback requires incident commander notification.</prism-source>"
+    )
+    rounds = 0
+
+    def handler(req):
+        nonlocal rounds
+        payload = json.loads(req.content)
+        physical.calls.append(payload)
+        packet = json.loads(payload["messages"][-1]["content"])
+        if "prism_evidence_lookup" in packet:
+            rounds += 1
+            if rounds == 2:
+                assert any(
+                    "manager approval" in e["quote"]
+                    for e in packet["retrieved_evidence"]
+                )
+            result = {
+                "evidence_refs": [],
+                "query": "manager approval"
+                if rounds == 1
+                else "incident commander notification",
+            }
+        elif "prism_reasoning_state" in packet:
+            quotes = [e["quote"] for e in packet["retrieved_evidence"]]
+            assert any("manager approval" in q for q in quotes)
+            assert any("incident commander notification" in q for q in quotes)
+            assert byte_tokens(packet["retrieved_evidence"]) <= 1536
+            result = {"standard_approver": "manager"}
+        else:
+            # Deliberately miss the facts: lookup must recover original passages.
+            result = {"status": "complete", "records": [], "needs": []}
+        return httpx.Response(200, json=completion(json.dumps(result)))
+
+    upstream._transport = httpx.MockTransport(handler)
+    try:
+        response, trace = await send(app, body)
+        assert response.status_code == 200, response.text
+        assert rounds == 2
+        assert trace["reduction"]["pooled_excerpts"] >= 2
+        assert len(trace["reduction"]["final_evidence_spans"]) >= 2
+        assert trace["reduction"]["temporary_files_cleaned"]
+        assert not trace["execution_usage"]["outstanding_nodes"]
+    finally:
+        await upstream.aclose()
+
+
+def test_evidence_window_deduplicates_repeated_rounds_and_bounds_overflow():
+    from prism.reduction import evidence_window
+
+    pool = [
+        {
+            "record_id": f"r{i}",
+            "evidence_pointer": "source.md#L1",
+            "source_ref": {
+                "source_id": "s",
+                "source_sha256": "sha",
+                "byte_start": i * 1000,
+                "byte_end": i * 1000 + 800,
+            },
+            "quote": f"Requirement {i}: " + "é" * 390,
+            "excerpt_truncated": False,
+        }
+        for i in range(8)
+    ]
+    result = evidence_window(pool, 1536, ["Requirement 0", "Requirement 7"])
+    assert byte_tokens(result) <= 1536
+    assert {e["record_id"] for e in result} >= {"r0", "r7"}
+    assert len(result) == len({e["record_id"] for e in result})
+    assert all(
+        e["source_ref"]["byte_end"] - e["source_ref"]["byte_start"]
+        == len(e["quote"].encode())
+        for e in result
+    )
+
+
+@pytest.mark.asyncio
+async def test_initial_request_search_recovers_empty_extraction_before_lookup_stops(
+    monkeypatch,
+):
+    monkeypatch.setenv("PRISM_API_KEY", "policy-key")
+    app, upstream, physical, config, models = setup()
+    configure(config, models, "evidence_map")
+
+    def handler(req):
+        payload = json.loads(req.content)
+        packet = json.loads(payload["messages"][-1]["content"])
+        if "prism_evidence_lookup" in packet:
+            assert any(
+                "manager approval" in e["quote"] for e in packet["retrieved_evidence"]
+            )
+            result = {"evidence_refs": [], "query": ""}
+        elif "prism_reasoning_state" in packet:
+            assert any(
+                "manager approval" in e["quote"] for e in packet["retrieved_evidence"]
+            )
+            result = {"standard_approver": "manager"}
+        else:
+            result = {"status": "complete", "records": [], "needs": []}
+        return httpx.Response(200, json=completion(json.dumps(result)))
+
+    upstream._transport = httpx.MockTransport(handler)
+    try:
+        response, trace = await send(app, request("evidence_map"))
+        assert response.status_code == 200, response.text
+        assert trace["reduction"]["input_records"] == 0
+        assert trace["reduction"]["initial_lookup"]["source_spans"]
+        assert trace["reduction"]["final_evidence_spans"]
+        assert trace["reduction"]["pooled_excerpts"] >= 1
+    finally:
+        await upstream.aclose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("format_mode", ["adaptive", "no_schema", "caller_schema"])
+async def test_adaptive_json_object_shape_is_enforced_without_supplying_answers(
+    monkeypatch,
+    format_mode,
+):
+    monkeypatch.setenv("PRISM_API_KEY", "policy-key")
+    app, upstream, physical, config, models = setup()
+    configure(config, models, "evidence_map")
+    body = request("evidence_map")
+    if format_mode == "no_schema":
+        models["synth"].capabilities.discard("json_schema")
+    elif format_mode == "caller_schema":
+        body["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "caller_fields",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {"standard_approver": {"type": ["string", "null"]}},
+                    "required": ["standard_approver"],
+                    "additionalProperties": False,
+                },
+            },
+        }
+    original_format = dict(body["response_format"])
+
+    def handler(req):
+        payload = json.loads(req.content)
+        packet = json.loads(payload["messages"][-1]["content"])
+        if "prism_evidence_lookup" in packet:
+            result = {"evidence_refs": [], "query": ""}
+        elif "prism_reasoning_state" in packet:
+            format = payload["response_format"]
+            if format_mode == "caller_schema":
+                assert format == original_format
+                result = {"standard_approver": None}
+            elif format["type"] == "json_schema":
+                assert format["json_schema"]["schema"] == {
+                    "type": "object",
+                    "additionalProperties": True,
+                }
+                result = {"standard_approver": None}
+            else:
+                result = None  # Reproduces a JSON-mode backend returning bare null.
+        else:
+            result = {"status": "complete", "records": [], "needs": []}
+        return httpx.Response(200, json=completion(json.dumps(result)))
+
+    upstream._transport = httpx.MockTransport(handler)
+    try:
+        response, trace = await send(app, body)
+        if format_mode == "no_schema":
+            assert response.status_code == 502, response.text
+            assert response.json()["error"]["code"] == "invalid_backend_output"
+        else:
+            assert response.status_code == 200, response.text
+            assert json.loads(response.json()["choices"][0]["message"]["content"]) == {
+                "standard_approver": None
+            }
+            assert trace["stop_reason"] == "complete"
+        assert body["response_format"] == original_format
+        assert not trace["execution_usage"]["outstanding_nodes"]
+    finally:
+        await upstream.aclose()
+
+
 @pytest.mark.asyncio
 async def test_reduction_helpers_respect_request_model_permissions(monkeypatch):
     from .test_optimization import body

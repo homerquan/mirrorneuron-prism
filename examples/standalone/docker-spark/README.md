@@ -110,3 +110,38 @@ The default runner now enables bounded `ReasoningState`, a recursive reduce tree
 ```
 
 Use identical suites/cases/budgets for structured versus rolling comparisons. Reports include completion and completed-answer quality separately, recovery attempts, invalid artifacts, reduce/lookup timing and tokens, tree levels, maximum state sizes, evidence retrieval and cleanup. The default structured fixture uses a 512-byte conservative state cap to qualify the 8K setup; operators can raise `state_max_tokens` up to 4096 when stage contexts permit. Strict context and graph budgets still bound the total supported workload; this is not an unlimited-call guarantee.
+
+## Native context qualification
+
+The original `large_cases()` fixtures test byte-bound admission and partitioning. The separate `native_context.py` runner generates seeded cases at actual native prompt lengths using the installed llama.cpp `/apply-template` and `/tokenize` endpoints. It calibrates two JSON-mode prompts against provider `prompt_tokens` and checks the declared runtime context against native `/props`; mismatched or unavailable tokenization stops qualification instead of substituting a byte estimate. It uses disabled thinking and text-only JSON output, without tools or multimodal templates.
+
+Use the actual runtime slot size from `docker model configure show`, rather than the model's advertised maximum. If Docker does not expose tokenizer HTTP routes, its installed llama.cpp server can be accessed through its Unix socket. Verify the socket belongs to the model being benchmarked; the runner does not switch models, pull weights, change runtime contexts, or restart deployments.
+
+For an already-running Spark Nemotron model with an 8K slot, open a temporary loopback tunnel in another terminal:
+
+```sh
+ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:57999:127.0.0.1:12434 spark
+```
+
+Then run a six-family 16K qualification:
+
+```sh
+.venv/bin/python examples/standalone/docker-spark/native_context.py \
+  --base-url http://127.0.0.1:57999/engines/v1 \
+  --model docker.io/ai/nemotron-3.5-lightning:latest \
+  --context-window 8192 \
+  --tokenizer-command 'ssh -o BatchMode=yes spark docker exec -i docker-model-runner curl --unix-socket /app/inference-runner-0.sock' \
+  --sizes 16384 --seeds 11 --positions end --native-direct
+```
+
+Use `--tokenizer-url` instead when the model's native llama.cpp HTTP server is directly accessible. Socket paths are deployment-specific. The command transport accepts an argv prefix and passes request JSON through stdin, without putting source text into command arguments. Cancel the owned tunnel afterward.
+
+For broader qualification, use `--sizes 4096 16384 32768 65536 --seeds 11 29 47 --positions start middle end --repeats 3`. This can require substantial inference time. Task families cover keyword distractors, distributed facts, exceptions, reference chains, effective policy revisions, and unspecified answers. References and complete gold byte spans stay outside model packets. Split seeds for development and held-out qualification; repetitions of a case are not independent examples.
+
+Every Prism stage uses the same physical model and conservative admission. The runner calls the real execution engine and HTTP backend in process; it does not measure proxy startup or learned routing. `--native-direct` additionally sends unchanged requests to the backend, detects actual context errors and possible silent prompt truncation, and grades fitting direct answers. These controls and calibration usage are saved separately from Prism-stage work.
+
+Adaptive final synthesis enforces `json_object` with an object-only schema when the backend supports JSON Schema; it does not supply field names or answer values. Native direct controls preserve the original JSON-mode request. This output-contract repair is part of the candidate implementation, so fitting-window quality differences cannot be attributed solely to partitioning. Oversized native direct rejection is the control for the runtime-window claim.
+
+Artifacts include original cases, target/measured native lengths, gold source spans, responses/traces, physical work, per-family accuracy and P50/P95 latency, and source/runner fingerprints. Span recall separately measures gold evidence present in mapped quotes, lookup excerpts, and final state references/excerpts. It does not establish semantic entailment or exhaustive mapper recall. Failed jobs score zero. Reports distinguish actual backend rejection from Prism's conservative byte admission. There is no automatic claim of unlimited context or a qualified length based solely on completion.
+
+The [2026-10-03 validation record](../../../docs/native-context-validation-20261003.md) records the measured results and limitations of this implementation.

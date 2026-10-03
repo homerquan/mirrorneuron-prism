@@ -951,10 +951,12 @@ class ExecutionEngine:
                 lookup_reservations,
                 final,
             )
+            final_parameters = compiled["reduction"]["final_parameters"]
         else:
             messages = evidence_messages(execution, evidence=evidence)
+            final_parameters = execution["parameters"]
         try:
-            check_context(messages, execution["parameters"], execution["output"], final)
+            check_context(messages, final_parameters, execution["output"], final)
         except PrismError as error:
             if error.code != "context_length_exceeded" or not compaction_reservations:
                 raise
@@ -965,11 +967,11 @@ class ExecutionEngine:
                 compiled["compaction"],
                 compaction_reservations,
             )
-            check_context(messages, execution["parameters"], execution["output"], final)
+            check_context(messages, final_parameters, execution["output"], final)
         return await self.backend.complete(
             final,
             messages,
-            execution["parameters"],
+            final_parameters,
             execution["output"],
             ledger,
             final_reservation,

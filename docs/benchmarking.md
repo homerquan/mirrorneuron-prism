@@ -1,5 +1,11 @@
 # Speed, quality, and cost benchmarks
 
+For native-token-sized sources beyond an installed runtime's window, use the [native context qualification runner](../examples/standalone/docker-spark/native_context.py), described in [the Docker/Spark instructions](../examples/standalone/docker-spark/README.md#native-context-qualification). This is separate from the original byte-admission fixtures. It sizes seeded cases with the installed tokenizer/template, checks calibration against provider usage, exercises actual oversized direct controls, and reports answer correctness, lookup span recall, stage fit, and physical work. It uses the same physical model at every stage to isolate orchestration from model assignment.
+
+See the [2026-10-03 native validation](native-context-validation-20261003.md) for measured results, implementation changes, physical work, and remaining limits.
+
+[RULER (Hsieh et al., 2024)](https://arxiv.org/abs/2404.06654) is a related evaluation foundation covering multiple-needle retrieval, multi-hop tracing, aggregation, and question answering. Prism's current native qualification uses independently written fixtures and reports no RULER score. Its distributed-fact and chain cases exercise related behaviors; aggregation remains untested. See [attribution and provenance](native-context-validation-20261003.md#prior-work-and-attribution) for the paper, official benchmark repository, and algorithm/runtime references.
+
 Run the same source questions through a direct baseline and the bounded extraction/synthesis pipeline. The packaged suite has six synthetic cases covering deployment qualifications, incident/runbook synthesis, UTF-8 names and units, prohibitions, effective policy dates, and numeric connection settings. Each case has an independent reference rubric; response schemas constrain the shape but do not supply the correct field values.
 
 Start the configured physical model server and Prism in one terminal:
