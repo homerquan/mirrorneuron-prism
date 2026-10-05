@@ -1,0 +1,41 @@
+---
+config:
+    theme: base
+    markdownAutoWrap: false
+    fontFamily: Arial, sans-serif
+    themeVariables:
+        primaryColor: "#eef2ff"
+        primaryBorderColor: "#6366f1"
+        primaryTextColor: "#172554"
+        lineColor: "#64748b"
+        clusterBkg: "#f8fafc"
+        clusterBorder: "#cbd5e1"
+    flowchart:
+        nodeSpacing: 40
+        rankSpacing: 40
+        wrappingWidth: 400
+---
+flowchart TB
+    A["Your application<br/>One Chat Completions request"]
+    subgraph P["Prism · transparent model proxy"]
+        G["Check capabilities<br/>Context and budgets"]
+        L{"Choose a feasible policy<br/>Laya or fixed profile"}
+        D["Direct model<br/>1 model call"]
+        W["Small or vision model<br/>Prepare observations"]
+        F["Final model<br/>Synthesize the answer"]
+        B["Draft model"]
+        R["Review model"]
+        S["Final model"]
+        V["Validate final output<br/>Record a metadata trace"]
+        G --> L
+        L -->|Direct| D
+        L -->|Prepare + synthesize: 2 calls| W
+        L -->|Draft + review + synthesize: 3 calls| B
+        W --> F
+        B --> R --> S
+        D --> V
+        F --> V
+        S --> V
+    end
+    A --> G
+    V --> O["One assistant response<br/>Same public API and model alias"]

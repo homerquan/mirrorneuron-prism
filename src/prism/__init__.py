@@ -1,6 +1,6 @@
 """Prism: bounded inference behind an OpenAI-compatible endpoint."""
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 
 def create_app(config, **kwargs):

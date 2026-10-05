@@ -11,7 +11,7 @@ This is an alpha implementation with constrained learned routing and several fin
 Use a fresh directory so `init` can create both configuration files. It never overwrites existing files. The checkout also provides `prism-openrouter.json` with the same models and profiles.
 
 ```sh
-python -m pip install mirrorneuron-prism  # after publication; currently install the prepared wheel or checkout
+python -m pip install mirrorneuron-prism
 mkdir prism-demo && cd prism-demo
 prism init --preset openrouter
 export OPENROUTER_API_KEY='your-openrouter-key'
@@ -68,11 +68,11 @@ curl --fail-with-body http://127.0.0.1:8080/v1/chat/completions \
 ## Docker
 
 ```sh
-docker build -t mirrorneuron-prism:0.3.0 .
+docker build -t mirrorneuron-prism:0.3.1 .
 docker run --rm -p 127.0.0.1:8080:8080 \
   -e OPENROUTER_API_KEY -e PRISM_API_KEY \
   -v prism-huggingface:/home/prism/.cache/huggingface \
-  mirrorneuron-prism:0.3.0
+  mirrorneuron-prism:0.3.1
 ```
 
 The image includes the free OpenRouter preset, CPU torch, a non-root user, and a readiness health check. The volume caches Laya's checkpoint. To opt out of client auth, append the complete command:
@@ -80,7 +80,7 @@ The image includes the free OpenRouter preset, CPU torch, a non-root user, and a
 ```sh
 docker run --rm -p 127.0.0.1:8080:8080 -e OPENROUTER_API_KEY \
   -v prism-huggingface:/home/prism/.cache/huggingface \
-  mirrorneuron-prism:0.3.0 serve --config /app/prism.json --host 0.0.0.0 --no-auth
+  mirrorneuron-prism:0.3.1 serve --config /app/prism.json --host 0.0.0.0 --no-auth
 ```
 
 `docker compose up --build` uses the authenticated preset and requires both environment variables. For a custom deployment, mount your configuration directory read-only at `/config` and pass `serve --config /config/prism.json --host 0.0.0.0`. Its model registry paths resolve relative to that mounted file. Pass the keys required by that registry. The build context excludes local secrets and evaluation artifacts.
@@ -103,7 +103,7 @@ prism doctor --config prism.json --probe-backends
 prism serve --config prism.json
 ```
 
-After publication, install with `python -m pip install mirrorneuron-prism`. Laya and its ML dependencies install automatically. The first server startup prepares its checkpoint on CPU and may download weights. The server binds to `127.0.0.1:8080` by default and requires bearer authentication. Put TLS at a reverse proxy before exposing it over a network.
+For a deployment outside the checkout, install with `python -m pip install mirrorneuron-prism`. Laya and its ML dependencies install automatically. The first server startup prepares its checkpoint on CPU and may download weights. The server binds to `127.0.0.1:8080` by default and requires bearer authentication. Put TLS at a reverse proxy before exposing it over a network.
 
 Configure physical models in **JSON**, separately from virtual policies. Existing files shaped like `models/muse-gemma-mix.json` still work: `id` defaults to `name`. Set the `models_file` path and profile references accordingly. Relative paths resolve against the config file, not the working directory.
 

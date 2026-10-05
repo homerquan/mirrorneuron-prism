@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mirrorneuron-prism"
-version = "0.3.0"
+version = "0.3.1"
 description = "OpenAI-compatible proxy for bounded text, vision, and reasoning model workflows"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -43,6 +43,7 @@ Issues = "https://github.com/homerquan/mirrorneuron-prism/issues"
 dev = [
   "build",
   "twine",
+  "readme-renderer[md]",
   "pytest",
   "pytest-asyncio",
   "pytest-cov>=6,<8",
