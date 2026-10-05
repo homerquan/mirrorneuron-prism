@@ -1,0 +1,32 @@
+{
+  "id": "nemotron-nano-reasoning",
+  "name": "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "base_url": "https://openrouter.ai/api/v1",
+  "provider": "openrouter",
+  "api_version": null,
+  "parameters": {
+    "max_tokens": 16384
+  },
+  "provider_options": {},
+  "timeout_seconds": 300.0,
+  "rate_limit_rpm": null,
+  "image_token_reserve": 4096,
+  "api_key_env": "OPENROUTER_API_KEY",
+  "context_window": 256000,
+  "max_output_tokens": 16384,
+  "safety_margin": 256,
+  "concurrency": 1,
+  "enable_thinking": null,
+  "tokens_per_byte_bound": 1.0,
+  "chat_overhead_tokens": 64,
+  "capabilities": [
+    "image",
+    "seed",
+    "stream",
+    "text",
+    "tools"
+  ],
+  "input_cost_per_million": 0.0,
+  "output_cost_per_million": 0.0,
+  "power_rating": null
+}

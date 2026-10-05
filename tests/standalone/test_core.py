@@ -13,6 +13,7 @@ from prism.config import DecisionConfig, Limits, RawModel, load_config
 from prism.context import SourceArena, SourceRef
 from prism.decision import LayaDecision
 from prism.errors import PrismError
+from prism.profiles import load_profile
 from prism.runtime import Ledger, Plan, PlanNode
 
 
@@ -34,15 +35,26 @@ def test_distribution_ships_only_the_standalone_package():
 
 
 def test_init_json_validate_existing_registry_and_lightweight_help(tmp_path, capsys):
-    assert main(["init", "--out-dir", str(tmp_path)]) == 0
-    assert main(["validate", "--config", str(tmp_path / "prism.json")]) == 0
-    before = (tmp_path / "models.json").read_text()
-    assert main(["init", "--out-dir", str(tmp_path)]) == 2
-    assert (tmp_path / "models.json").read_text() == before
+    assert main(["init", "--preset", "local", "--out-dir", str(tmp_path)]) == 0
+    assert (
+        main(
+            [
+                "validate",
+                "--profile",
+                str(tmp_path / "profiles/prism-local-direct.json"),
+            ]
+        )
+        == 0
+    )
+    before = (tmp_path / "models/local.json").read_text()
+    assert main(["init", "--preset", "local", "--out-dir", str(tmp_path)]) == 2
+    assert (tmp_path / "models/local.json").read_text() == before
+    # The old combined format still supports name-derived IDs.
     raw = json.loads(before)
-    del raw["models"][0]["id"]
-    raw["models"][0]["name"] = "local"
-    (tmp_path / "models.json").write_text(json.dumps(raw))
+    del raw["id"]
+    raw["name"] = "local"
+    (tmp_path / "models.json").write_text(json.dumps({"models": [raw]}))
+    (tmp_path / "prism.json").write_text("{}")
     assert load_config(tmp_path / "prism.json")[1]["local"].name == "local"
     result = subprocess.run(
         [
@@ -56,17 +68,26 @@ def test_init_json_validate_existing_registry_and_lightweight_help(tmp_path, cap
 
 
 def test_self_reference_invalid_config_and_secret_redaction(tmp_path, capsys):
-    main(["init", "--out-dir", str(tmp_path)])
+    main(["init", "--preset", "local", "--out-dir", str(tmp_path)])
     capsys.readouterr()
-    path = tmp_path / "models.json"
+    path = tmp_path / "models/local.json"
     models = json.loads(path.read_text())
-    models["models"][0]["base_url"] = "http://localhost:8080/v1"
+    models["base_url"] = "http://localhost:8080/v1"
     path.write_text(json.dumps(models))
     with pytest.raises(ValueError, match="self-referential"):
-        load_config(tmp_path / "prism.json")
-    models["models"][0]["base_url"] = "http://bob:secret@host/v1?key=secret"
+        load_profile(tmp_path / "profiles/prism-local-direct.json")
+    models["base_url"] = "http://bob:secret@host/v1?key=secret"
     path.write_text(json.dumps(models))
-    assert main(["validate", "--config", str(tmp_path / "prism.json")]) == 2
+    assert (
+        main(
+            [
+                "validate",
+                "--profile",
+                str(tmp_path / "profiles/prism-local-direct.json"),
+            ]
+        )
+        == 2
+    )
     assert "secret" not in capsys.readouterr().out
 
 

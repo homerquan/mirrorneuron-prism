@@ -390,7 +390,7 @@ def report(records, out, repeats):
         "",
         "## Reproduction and evidence",
         "",
-        "Start `prism serve --config prism-openrouter.json --no-auth`, then run:",
+        "Start `prism serve --config src/prism/resources/openrouter/prism.json --no-auth`, then run:",
         "",
         "```sh",
         f"python examples/standalone/openrouter_evaluation.py --no-auth --repeats {repeats} --out-dir docs/evaluations/NEW-RUN",
@@ -432,7 +432,7 @@ async def run(args):
 
     from prism import __version__
 
-    config, models = load_config(ROOT / "prism-openrouter.json")
+    config, models = load_config(ROOT / "src/prism/resources/openrouter/prism.json")
     if not all(m.name.endswith(":free") for m in models.values()):
         raise ValueError("evaluation only permits explicit free models")
     args.out_dir.mkdir(parents=True, exist_ok=False)

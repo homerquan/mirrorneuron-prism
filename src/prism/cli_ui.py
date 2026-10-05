@@ -1,7 +1,8 @@
 """Terminal presentation; redirected output remains ordinary JSON."""
 
 import json
-from contextlib import nullcontext
+import sys
+from contextlib import contextmanager, nullcontext
 
 from rich.console import Console
 from rich.panel import Panel
@@ -9,11 +10,50 @@ from rich.table import Table
 from rich.text import Text
 
 
+def format_rate(value):
+    return "unknown" if value is None else f"${value:g}"
+
+
 class Output:
     def __init__(self, mode="auto", *, console=None, errors=None):
-        self.console = console or Console(highlight=False)
-        self.errors = errors or Console(stderr=True, highlight=False)
+        self.console = console or Console(file=sys.stdout, highlight=False)
+        self.errors = errors or Console(file=sys.stderr, highlight=False)
         self.human = mode == "table" or (mode == "auto" and self.console.is_terminal)
+        self.mode = mode
+        self.dashboard = None
+
+    @contextmanager
+    def cost_display(self, enabled, snapshot, *, host, port, profiles, no_auth):
+        fullscreen = (
+            enabled
+            and self.human
+            and self.console.is_terminal
+            and self.errors.is_terminal
+            and not self.errors.is_dumb_terminal
+        )
+        try:
+            if fullscreen:
+                from .cost_ui import CostDashboard
+
+                with CostDashboard(
+                    self.errors,
+                    snapshot,
+                    host=host,
+                    port=port,
+                    profiles=profiles,
+                    no_auth=no_auth,
+                ) as dashboard:
+                    self.dashboard = dashboard
+                    yield True
+            else:
+                self.serving(host, port, len(profiles), no_auth)
+                if enabled:
+                    self.costs(snapshot())
+                yield False
+        finally:
+            self.dashboard = None
+            if enabled:
+                self.costs(snapshot())
 
     def status(self, message):
         return (
@@ -65,6 +105,15 @@ class Output:
                         f"Context {m['context_window']:,} · output {m['max_output_tokens']:,}\n"
                         f"{', '.join(m['capabilities'])}\n"
                         + (
+                            f"USD / 1M: input {format_rate(m.get('input_cost_per_million'))} · output {format_rate(m.get('output_cost_per_million'))}"
+                            + (
+                                " (hypothetical)"
+                                if m.get("cost_rates_are_hypothetical")
+                                else ""
+                            )
+                            + "\n"
+                        )
+                        + (
                             "Credential ready"
                             if m["credential_ready"]
                             else f"Set {m['credential_env']}"
@@ -80,7 +129,9 @@ class Output:
                 [
                     (
                         p["id"],
-                        f"{p['strategy']}\nDirect: {p['direct']}\n"
+                        f"{p['strategy']}\n"
+                        + (f"File: {p['file']}\n" if p.get("file") else "")
+                        + f"Direct: {p['direct']}\n"
                         + (
                             f"Worker: {p['worker']}\nFinal: {p['synthesizer'] or p['direct']}\n"
                             if p["worker"]
@@ -162,3 +213,40 @@ class Output:
                     border_style="cyan",
                 )
             )
+
+    def costs(self, value):
+        if self.dashboard is not None:
+            return  # The live renderer reads a consistent tracker snapshot.
+        if not self.human or (self.mode == "auto" and not self.errors.is_terminal):
+            self.errors.print(
+                json.dumps(value), markup=False, highlight=False, soft_wrap=True
+            )
+            return
+        total = value["total_cost_usd"]
+        spend = (
+            f"${total:.6f}"
+            if total is not None
+            else f"${value['known_cost_usd']:.6f} known; total incomplete"
+        )
+        saved = value["estimated_saved_usd"]
+        percent = value["estimated_saved_percent"]
+        savings = (
+            "unavailable"
+            if saved is None
+            else f"${saved:.6f}"
+            + (f" ({percent:.1f}%)" if percent is not None else " (zero-cost baseline)")
+        )
+        self.errors.print(
+            Panel(
+                Text(
+                    f"Token cost since start: {spend} · {value['physical_calls']} calls\n"
+                    f"Reported input tokens: {value['reported_input_tokens']:,} · output tokens: {value['reported_output_tokens']:,}\n"
+                    f"Estimated savings vs direct: {savings} · {value['compared_requests']} compared requests\n"
+                    f"Unpriced calls: {value['unpriced_calls']} · missing usage: {value['unreported_usage_calls']} · excluded requests: {value['excluded_requests']}"
+                ),
+                title="Prism simulated cost (hypothetical prices)"
+                if value.get("pricing_mode") == "hypothetical"
+                else "Prism cost",
+                border_style="cyan",
+            )
+        )

@@ -1,1 +1,14 @@
-{"models": [{"name": "muse-glimmer-30b", "base_url": "http://10.0.4.32:8000/v1", "api_key": "dummy"}, {"name": "ai/gemma4:E2B", "base_url": "http://localhost:12434/engines/v1", "api_key": null}]}
+{
+  "models": [
+    {
+      "name": "muse-glimmer-30b",
+      "base_url": "http://10.0.4.32:8000/v1",
+      "api_key_env": "SPARK_API_KEY"
+    },
+    {
+      "name": "ai/gemma4:E2B",
+      "base_url": "http://localhost:12434/engines/v1",
+      "api_key": null
+    }
+  ]
+}

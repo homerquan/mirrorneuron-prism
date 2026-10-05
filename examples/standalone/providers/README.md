@@ -1,48 +1,60 @@
-# Native OpenAI, Claude, and Gemini samples
+# OpenAI, Claude, and Gemini
 
-These are expected configurations based on current provider documentation and local LiteLLM SDK protocol fixtures. They have **not** been tested against live paid APIs: no paid-provider keys were available. Model access, parameters, output limits, and availability must be qualified with your account. Unlike the OpenRouter-only preset, these examples include paid models.
+Use the individual model definitions in the repository's [models/](../../../models) and combinations in [profiles/](../../../profiles). The same definitions are bundled in the package for `prism init`. Provider connections, model names, and credentials are in model files; profile files reference their IDs.
 
-## Select a provider
+## Get a first response
 
-| Config | Small worker | Strong final | Credential |
-|---|---|---|---|
-| `prism-openai.json` | `openai/gpt-6-luna` | `openai/gpt-6-astra` | `OPENAI_API_KEY` |
-| `prism-claude.json` | `anthropic/claude-haiku-4-5` | `anthropic/claude-opus-5-5` | `ANTHROPIC_API_KEY` |
-| `prism-gemini.json` | `gemini/gemini-3.5-flash-lite` | `gemini/gemini-3.8-flash` | `GEMINI_API_KEY` |
-
-The shared `models.json` defines each physical model once. The combined `prism.json` serves all profiles. `prism init --preset providers --out-dir NEW_DIRECTORY` generates that combined configuration from the installed wheel. Per-provider config files restrict virtual profiles; shared physical models still get direct aliases, and `doctor --probe-backends` checks the whole registry. Use `capacity --model SELECTED_ALIAS` to qualify only your selected model/profile, or trim the registry for a single-provider deployment.
+After installing this checkout, use a fresh deployment directory:
 
 ```sh
-export PRISM_API_KEY='your-prism-client-secret'
+mkdir prism-openai-demo && cd prism-openai-demo
+prism init --preset openai
 export OPENAI_API_KEY='your-openai-key'
-prism validate --config examples/standalone/providers/prism-openai.json
-prism capacity --config examples/standalone/providers/prism-openai.json --model prism-openai
-prism serve --config examples/standalone/providers/prism-openai.json
+export PRISM_API_KEY='your-prism-client-secret'
+prism start --profile prism-openai-direct --show-cost
 ```
 
-For Claude, set `ANTHROPIC_API_KEY` and select `prism-claude.json`; for Gemini, set `GEMINI_API_KEY` and select `prism-gemini.json`. Keys come only from environment variables; no sample embeds credentials. Prism client auth uses `PRISM_API_KEY` or an explicit serving `--no-auth` flag.
+Send Chat Completions with `model: "prism-openai-direct"`. For Claude, initialize with `--preset claude`, set `ANTHROPIC_API_KEY`, and start `prism-claude-direct`. For Gemini, use `--preset gemini`, `GEMINI_API_KEY`, and `prism-gemini-direct`. `PRISM_API_KEY` always protects the Prism client connection unless `--no-auth` is explicitly supplied. Keys come from the environment.
 
-## Workflow variants
+| Model IDs | Physical models | Native transport | Credential |
+|---|---|---|---|
+| `openai-small`, `openai-strong` | `gpt-6-luna`, `gpt-6-astra` | `openai` at `https://api.openai.com/v1` | `OPENAI_API_KEY` |
+| `claude-small`, `claude-strong` | `anthropic/claude-haiku-4-5`, `anthropic/claude-opus-5-5` | `anthropic` at `https://api.anthropic.com` | `ANTHROPIC_API_KEY` |
+| `gemini-small`, `gemini-strong` | `gemini/gemini-3.5-flash-lite`, `gemini/gemini-3.8-flash` | `gemini` at `https://generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
+| `gemini-pro` | `gemini/gemini-3.1-pro-preview` | `gemini` | `GEMINI_API_KEY` |
 
-Replace `VENDOR` with `openai`, `claude`, or `gemini`:
+Model IDs were checked against official docs on October 5, 2026: [OpenAI Luna](https://developers.openai.com/api/docs/models/gpt-6-luna), [OpenAI Astra](https://developers.openai.com/api/docs/models/gpt-6-astra), [Claude models](https://platform.claude.com/docs/en/models/overview), and [Gemini models](https://ai.google.dev/gemini-api/docs/models). Context/output bounds in the files are conservative operator limits, rather than full vendor maxima. Model access and behavior require qualification with your account. These examples have configuration and local LiteLLM protocol-fixture coverage; no live paid-cloud qualification is claimed.
 
-| Alias | Stages | Keys used |
-|---|---|---|
-| `prism-VENDOR` | Automatic direct / source-backed evidence; small worker → strong final | Native vendor |
-| `prism-VENDOR-reviewed` | Small draft → strong review → strong final | Native vendor |
-| `prism-VENDOR-vision` | Small image interpretation → strong final | Native vendor |
-| `nano-VENDOR` | Free Nano plain-text preparation → strong final | OpenRouter + native vendor |
-| `omni-VENDOR` | Free Nano image interpretation → strong final | OpenRouter + native vendor |
+## Combine models
 
-All final models are explicitly assigned for JSON. Free Nano retains no JSON declaration. Mixed free/native profiles require `OPENROUTER_API_KEY` as well as the native key. Native-only aliases do not need OpenRouter. Worker observations are lossy; use source-backed evidence policies when quote provenance matters. Image understanding produces text, not generated images or audio/video output.
+Stop the current server and start a different profile; use that profile's `id` in your request. Replace `VENDOR` with `openai`, `claude`, or `gemini`:
 
-`prism-gemini-pro` optionally uses `gemini/gemini-3.1-pro-preview`; qualify preview availability separately. Context limits are conservatively set to 131072 tokens and output to 16384; profiles cap public/worker generation at 4096, with 300-second graph deadlines. No speculative native prices or power ratings are configured. Set verified operator prices if you want dollar ceilings or cost optimization.
+| Profile | Workflow |
+|---|---|
+| `prism-VENDOR-direct` | One small-model call |
+| `prism-VENDOR` | Automatic direct / source-backed small worker → strong final |
+| `prism-VENDOR-reviewed` | Small draft → strong review → strong final |
+| `prism-VENDOR-vision` | Small image interpretation → strong text answer |
+| `nano-VENDOR` | Free Nano plain-text preparation → native final |
+| `omni-VENDOR` | Free Nano image observations → native final |
 
-## Qualification
+`prism init --preset providers` includes all of these combinations. A selected native-only profile needs only that vendor's key. Mixed Nano/native profiles also need `OPENROUTER_API_KEY`; loading other sample files does not require their credentials. `prism-gemini-pro` selects the preview model; qualify preview availability separately.
 
-1. Validate the configuration and inspect `prism models` credential readiness.
-2. Run `prism capacity --model PHYSICAL_ID` to test actual model behavior independently of declarations.
-3. Run `prism capacity --model PROFILE_ALIAS` to test the real graph's final JSON, pixels, and reasoning outputs.
-4. Send your own task fixtures, including JSON Schema, streaming, and images where applicable. A single passing challenge is not a general guarantee.
+Free Nano has no JSON declaration. Final models are assigned explicitly for caller JSON requirements. Worker observations can lose information; source-backed evidence policies validate quote provenance separately. Vision means image understanding and text output.
 
-References checked October 4, 2026: [OpenAI Astra](https://developers.openai.com/api/docs/models/gpt-6-astra), [Claude model updates](https://platform.claude.com/docs/en/models/opus-5-5/whats-new-opus-5-5), [Gemini models](https://ai.google.dev/gemini-api/docs/models), [LiteLLM Anthropic](https://docs.litellm.ai/docs/providers/anthropic), [LiteLLM Gemini](https://docs.litellm.ai/docs/providers/gemini), and [LiteLLM JSON behavior](https://docs.litellm.ai/docs/completion/json_mode). The native SDK translates the wire protocol; Prism validates the final output. There are no automatic provider fallbacks or silent parameter drops.
+## Prices and qualification
+
+Set both token prices in `models/MODEL_ID.json`, using numbers or strings such as `"$5/m"`, then add `--show-cost` at startup. The Haiku sample includes the documented standard $1 input / $5 output rates per million tokens; other native prices are left unknown for the operator to set. Use your actual rates, including zero for an applicable free tier. [Cost calculation and limits](../../../docs/cost-tracking.md).
+
+```sh
+prism validate --profile prism-openai
+prism models --profile prism-openai
+prism capacity --profile prism-openai
+prism capacity --profile prism-openai --model openai-small
+```
+
+Capacity makes real inference calls and may be billed. Follow those small behavior checks with your own text, structured output, image, and streaming fixtures. [LiteLLM Anthropic](https://docs.litellm.ai/docs/providers/anthropic) and [LiteLLM Gemini](https://docs.litellm.ai/docs/providers/gemini) describe native protocol conversion; Prism independently validates final JSON. It performs no hidden provider fallback or silent parameter dropping.
+
+## Older multi-alias examples
+
+The JSON files beside this README are retained **legacy combined configurations**. They use `prism serve --config examples/standalone/providers/prism-openai.json` (or the Claude/Gemini equivalent) and expose raw registry aliases as well as virtual profiles. Their shared registry includes all providers, so serving it requires all configured upstream keys. Prefer the standalone profile commands above for a single-provider deployment. New `init` output has no combined `prism.json` or `models.json`.

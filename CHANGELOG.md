@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Turn `--show-cost` into a live full-screen terminal dashboard, with per-model usage, uptime, safe server events, and a final summary; retain JSON reports for scripts.
+- Restore `prism` to the free local Gemma/Spark pair; name the OpenRouter automatic workflow `prism-openrouter`. Add `prism-mock-cost` with real OpenRouter Super/Ultra calls and explicitly hypothetical rates for savings demonstrations.
+- Remove the older top-level combined configs; standalone workflows are in `profiles/`, with bundled multi-alias examples retained for experiments.
+
+- Separate reusable connection definitions in `models/` from individual workflows in `profiles/`; add `prism start --profile NAME` with only the selected models and credentials.
+- Generate matching local, OpenRouter, OpenAI, Claude, Gemini, and mixed-provider samples from installed presets; preserve legacy `serve --config` configurations.
+- Accept numeric USD token rates and shorthand such as `"$5/m"`; add `--show-cost` and authenticated `/v1/prism/costs` for process-lifetime input/output token spend and explicit estimated savings.
+- Keep unpriced/unreported usage, excluded comparisons, zero baselines, and negative savings visible.
+- Rewrite the first-answer quick start, provider/configuration/cost guides, and Docker command; remove the dummy Spark credential from the retained local registry.
+
 ## 0.3.1 — 2026-10-04
 
 - Fix the PyPI description's prism image and documentation links with absolute public URLs.

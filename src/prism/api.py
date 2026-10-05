@@ -16,6 +16,7 @@ from .backends import OpenAIBackend
 from .capacity import CapacityEvaluator, ProfileCapacityEvaluator
 from .config import load_config
 from .contracts import parse_json, validate_request
+from .costs import CostTracker
 from .decision import LayaDecision
 from .engine import ExecutionEngine
 from .errors import PrismError
@@ -50,11 +51,19 @@ async def connected(request, coroutine):
 
 
 def create_app(
-    config, *, models=None, backend=None, decision_agent=None, no_auth=False
+    config,
+    *,
+    models=None,
+    backend=None,
+    decision_agent=None,
+    no_auth=False,
+    cost_reporter=None,
 ):
     if models is None:
         config, models = load_config(config)
     transport = backend or OpenAIBackend(models)
+    costs = CostTracker(models, cost_reporter)
+    transport.cost_tracker = costs
     decision = LayaDecision(config.decision, decision_agent)
     engine = ExecutionEngine(config, models, transport, decision)
     traces = TraceStore(config.server.trace_capacity, config.server.trace_ttl_seconds)
@@ -86,6 +95,7 @@ def create_app(
     app.state.traces = traces
     app.state.capacity = capacity
     app.state.no_auth = no_auth
+    app.state.costs = costs
 
     @app.exception_handler(PrismError)
     async def public_error(request, error):
@@ -132,6 +142,11 @@ def create_app(
                 for alias in config.profiles
             ],
         }
+
+    @app.get("/v1/prism/costs")
+    async def show_costs(request: Request):
+        authenticate(request)
+        return costs.snapshot()
 
     @app.get("/v1/prism/traces/{request_id}")
     async def show_trace(request: Request, request_id: str):
@@ -254,6 +269,7 @@ def create_app(
             return JSONResponse(result, headers={"cache-control": "no-store"})
         finally:
             admitted -= 1
+            costs.emit()
 
     @app.post("/v1/chat/completions")
     async def chat(request: Request):
@@ -335,6 +351,7 @@ def create_app(
                                     execution, execution["trace"]["stop_reason"]
                                 )
                                 traces.put(owner, execution["trace"])
+                                costs.record_execution(execution)
                                 admitted -= 1
 
                 streaming_owns_admission = True
@@ -349,5 +366,6 @@ def create_app(
                 admitted -= 1
                 if execution is not None:
                     traces.put(owner, execution["trace"])
+                    costs.record_execution(execution)
 
     return app

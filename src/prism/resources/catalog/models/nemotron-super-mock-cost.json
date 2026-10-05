@@ -1,0 +1,35 @@
+{
+  "id": "nemotron-super-mock-cost",
+  "name": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+  "base_url": "https://openrouter.ai/api/v1",
+  "provider": "openrouter",
+  "api_version": null,
+  "parameters": {
+    "max_tokens": 16384
+  },
+  "provider_options": {},
+  "timeout_seconds": 300.0,
+  "rate_limit_rpm": null,
+  "image_token_reserve": 4096,
+  "api_key_env": "OPENROUTER_API_KEY",
+  "context_window": 262144,
+  "max_output_tokens": 16384,
+  "safety_margin": 256,
+  "concurrency": 1,
+  "enable_thinking": null,
+  "tokens_per_byte_bound": 1.0,
+  "chat_overhead_tokens": 64,
+  "capabilities": [
+    "json_object",
+    "json_schema",
+    "reasoning_effort",
+    "seed",
+    "stream",
+    "text",
+    "tools"
+  ],
+  "input_cost_per_million": "$0.1/m",
+  "output_cost_per_million": "$0.5/m",
+  "power_rating": null,
+  "cost_rates_are_hypothetical": true
+}

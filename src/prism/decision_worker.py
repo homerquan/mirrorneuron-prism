@@ -26,7 +26,7 @@ def serve(connection, config):
                 connection.send({"result": result})
             except Exception:
                 connection.send({"error": "decision_unavailable"})
-    except (EOFError, BrokenPipeError):
+    except (EOFError, BrokenPipeError, KeyboardInterrupt):
         pass
     except Exception:
         try:

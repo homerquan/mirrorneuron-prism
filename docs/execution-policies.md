@@ -1,12 +1,12 @@
 # Execution policies and required Laya routing
 
-Install with `python -m pip install .` from the checkout, or `python -m pip install mirrorneuron-prism` after publication. Laya installs as a required dependency. Keep physical model names, URLs, limits, capabilities, and prices in the raw-model JSON; policy profiles belong in `prism.json`.
+Install with `python -m pip install .` from the checkout, or `python -m pip install mirrorneuron-prism` after publication. Laya installs as a required dependency. Keep physical model names, URLs, limits, capabilities, and prices in the raw-model JSON; individual policy profiles belong in `profiles/`. The multi-alias examples below use the bundled `src/prism/resources/prism.json` configuration.
 
 ```sh
 export PRISM_API_KEY='your-configured-secret'
-prism validate --config prism.json
+prism validate --config src/prism/resources/prism.json
 prism policies
-prism serve --config prism.json
+prism serve --config src/prism/resources/prism.json
 ```
 
 The service prepares `convaiinnovations/laya-typed-decisions` on CPU before accepting requests. Its first startup may download weights. Set `decision.model` to a prepared local checkpoint for offline use, or pin `decision.revision` and optionally `expected_sha256` file hashes for reproducibility. Installation/configuration commands do not load weights.
@@ -125,9 +125,9 @@ Explicitly permit `draft_review` to use a three-node draft → review → synthe
 Compare policies with the same saved reference suite:
 
 ```sh
-prism benchmark run --config prism.json --candidate prism-batched \
+prism benchmark run --config src/prism/resources/prism.json --candidate prism-batched \
   --out-dir benchmark-results/batched-a
-prism benchmark run --config prism.json --candidate prism \
+prism benchmark run --config src/prism/resources/prism.json --candidate prism \
   --out-dir benchmark-results/laya-auto-a
 prism benchmark compare benchmark-results/batched-a benchmark-results/laya-auto-a \
   --out-dir benchmark-results/batched-vs-auto

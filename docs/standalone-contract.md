@@ -4,7 +4,9 @@ The architectural source is `prism_standalone_proxy_design.md`. The release impl
 
 | Design boundary | Implementation |
 | --- | --- |
-| API ownership | FastAPI service with default bearer authentication and explicit process-level `--no-auth`; `/v1/chat/completions`, `/v1/models`, metadata traces, `/capacity`; one choice, text output and image input |
+| API ownership | FastAPI service with default bearer authentication and explicit process-level `--no-auth`; `/v1/chat/completions`, `/v1/models`, metadata traces, `/v1/prism/costs`, `/capacity`; one choice, text output and image input |
+| Configuration | Individual `models/` connections with environment credentials and `profiles/` workflows; `start --profile` exposes one alias and loads only referenced models; legacy `serve --config` remains supported |
+| Cost reporting | Configured per-million USD input/output rates, provider-usage spend since process start, unknown-cost counts, and explicitly estimated direct-baseline savings; no invoice or answer-quality guarantee |
 | Backend adapter | LiteLLM SDK native/compatible calls with bounded HTTP guards; explicit limits/admission declarations, no SDK retries; configured policy repair is bounded and traced |
 | Public identity | Virtual alias returned in completions/chunks; physical model IDs in traces |
 | Compatibility gate | Known parameter allowlist; untransformed direct-only tools/logprobs/bias/seed/reasoning; unsupported features rejected |

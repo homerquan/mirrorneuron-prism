@@ -10,9 +10,10 @@ from prism.api import create_app
 from prism.backends import LiteLLMBackend
 from prism.capacity import ProfileCapacityEvaluator, image_challenge
 from prism.cli import main
-from prism.config import CapacityConfig, Limits, PrismConfig, RawModel, load_config
+from prism.config import CapacityConfig, Limits, PrismConfig, RawModel
 from prism.contracts import has_images
 from prism.errors import PrismError
+from prism.profiles import load_profile
 from prism.runtime import Ledger
 
 from .test_litellm_capacity import completion, decode_colors
@@ -234,7 +235,8 @@ def test_packaged_openrouter_preset_and_explicit_serve_flag(tmp_path, monkeypatc
 
     monkeypatch.delenv("PRISM_API_KEY", raising=False)
     assert main(["init", "--preset", "openrouter", "--out-dir", str(tmp_path)]) == 0
-    config, models = load_config(tmp_path / "prism.json")
+    path = str(tmp_path / "profiles/prism-vision-llm.json")
+    config, models = load_profile(path)
     assert all(
         m.name.startswith("openrouter/") and m.name.endswith(":free")
         for m in models.values()
@@ -244,18 +246,21 @@ def test_packaged_openrouter_preset_and_explicit_serve_flag(tmp_path, monkeypatc
         for m in models.values()
     )
     assert config.profiles["prism-vision-llm"].worker == "nemotron-nano-reasoning"
-    assert main(["serve", "--config", str(tmp_path / "prism.json")]) == 2
+    assert main(["start", "--profile", path]) == 2
     calls = []
     monkeypatch.setattr(
         uvicorn, "run", lambda app, **kwargs: calls.append((app, kwargs))
     )
-    assert main(["serve", "--config", str(tmp_path / "prism.json"), "--no-auth"]) == 0
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-upstream-key")
+    assert main(["start", "--profile", path, "--no-auth"]) == 0
     assert calls[0][0].state.no_auth is True
     root = Path(__file__).resolve().parents[2]
-    repo_config = json.loads((root / "prism-openrouter.json").read_text())
-    repo_config["models_file"] = "models.json"
     resources = files("prism").joinpath("resources", "openrouter")
-    assert json.loads(resources.joinpath("prism.json").read_text()) == repo_config
+    bundled = json.loads(resources.joinpath("prism.json").read_text())
+    for alias, profile in bundled["profiles"].items():
+        name = "prism-openrouter" if alias == "prism" else alias
+        standalone = json.loads((root / "profiles" / f"{name}.json").read_text())
+        assert standalone["profile"] == profile
     assert json.loads(resources.joinpath("models.json").read_text()) == json.loads(
         (root / "models/openrouter-nemotron-mix.json").read_text()
     )

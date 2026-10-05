@@ -1,0 +1,31 @@
+{
+  "id": "gemini-pro",
+  "name": "gemini/gemini-3.1-pro-preview",
+  "base_url": "https://generativelanguage.googleapis.com",
+  "provider": "gemini",
+  "api_version": null,
+  "parameters": {},
+  "provider_options": {},
+  "timeout_seconds": 300.0,
+  "rate_limit_rpm": null,
+  "image_token_reserve": 4096,
+  "api_key_env": "GEMINI_API_KEY",
+  "context_window": 131072,
+  "max_output_tokens": 16384,
+  "safety_margin": 256,
+  "concurrency": 2,
+  "enable_thinking": null,
+  "tokens_per_byte_bound": 1.0,
+  "chat_overhead_tokens": 64,
+  "capabilities": [
+    "image",
+    "json_object",
+    "json_schema",
+    "stream",
+    "text",
+    "tools"
+  ],
+  "input_cost_per_million": null,
+  "output_cost_per_million": null,
+  "power_rating": null
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "prism-mock-cost",
+  "models_dir": "../models",
+  "profile": {
+    "direct": "nemotron-ultra-mock-cost",
+    "worker": "nemotron-super-mock-cost",
+    "synthesizer": "nemotron-ultra-mock-cost",
+    "strategy": "text_synthesis",
+    "public_max_output_tokens": 1024,
+    "worker_output_tokens": 2048,
+    "partition_bytes": 6000,
+    "limits": {
+      "max_calls": 64,
+      "max_input_tokens": 2000000,
+      "max_output_tokens": 65536,
+      "deadline_seconds": 300,
+      "max_partitions": 60,
+      "max_parallel": 1
+    },
+    "allowed_policies": [
+      "direct",
+      "text_synthesis"
+    ],
+    "intermediate_max_bytes": 2048
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "api_key_env": "PRISM_API_KEY"
+  },
+  "decision": {
+    "mode": "route",
+    "model": "convaiinnovations/laya-typed-decisions",
+    "revision": "1a793eb568e6718f15941d08f85432581df534e3",
+    "min_option_confidence": 0.7
+  }
+}

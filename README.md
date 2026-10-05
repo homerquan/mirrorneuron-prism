@@ -3,107 +3,119 @@
 [![PyPI](https://img.shields.io/pypi/v/mirrorneuron-prism.svg)](https://pypi.org/project/mirrorneuron-prism/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/homerquan/mirrorneuron-prism/blob/main/LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://github.com/homerquan/mirrorneuron-prism/blob/main/pyproject.toml)
-[![CI](https://github.com/homerquan/mirrorneuron-prism/actions/workflows/ci.yml/badge.svg)](https://github.com/homerquan/mirrorneuron-prism/actions/workflows/ci.yml)
-[![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg)](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/standalone-contract.md)
 
-**Turn local models and cloud LLMs into one AI API.**
+**Combine local and cloud models behind one OpenAI-compatible API.** Define connections once in `models/`, combine them in `profiles/`, and start a profile. Your application receives one assistant response.
 
-![A glass prism splitting white light into a rainbow spectrum](https://raw.githubusercontent.com/homerquan/mirrorneuron-prism/main/docs/assets/prism.jpeg)
+Prism can send a small model's notes to a stronger model, have a vision model interpret an image before text synthesis, or draft and review an answer. Use the same OpenAI client for every workflow. Prism is part of [MirrorNeuron](https://www.mirrorneuron.io) and also runs independently.
 
-[Why Prism](https://github.com/homerquan/mirrorneuron-prism#why-prism) · [How it works](https://github.com/homerquan/mirrorneuron-prism#how-it-works) · [Quick start](https://github.com/homerquan/mirrorneuron-prism#start-with-free-openrouter-models) · [Documentation](https://github.com/homerquan/mirrorneuron-prism#documentation-and-development) · [Contributing](https://github.com/homerquan/mirrorneuron-prism/blob/main/CONTRIBUTING.md)
+## Quick start: get your first answer
 
-Prism lets several models work together behind one OpenAI-compatible endpoint. Connect your application once, then choose a profile that combines the models you need: a small model to prepare context, a vision model to read an image, or a larger model to review and finish the answer. Your application receives one assistant response.
-
-Prism is a component of [MirrorNeuron](https://www.mirrorneuron.io), built to make AI workflows useful on infrastructure you control. It helps solve local AI by composing available models into a service your applications can use. You can also run Prism independently: combine local servers with OpenRouter, OpenAI, Claude, Gemini, and other APIs supported by LiteLLM, using local models, cloud models, or a mix of both.
-
-Distribution: **`mirrorneuron-prism`** · import: **`prism`** · command: **`prism`** · Python **3.11+** · MIT
-
-## Why Prism
-
-AI applications need different capabilities for different jobs. A coding assistant may benefit from drafting and review; a support tool needs structured answers; an image workflow needs vision before reasoning. Prism gives you a place to compose those capabilities while your application keeps the same API.
-
-- **Keep your application simple.** Use your existing OpenAI client and switch workflows by model alias. Define physical models once and reuse them across profiles.
-- **Put each model to useful work.** Let a small or free model prepare context, a vision model interpret pixels, and a selected final model write the answer. Measure cost, latency, and task quality to find a combination that fits your workload.
-- **Bring your own compute and providers.** Start with local inference, cloud APIs, or both. Run Prism as a Python package or Docker service; MirrorNeuron is optional for standalone use.
-- **Make model choices visible.** Test actual JSON, image, and reasoning behavior, route structured output to a capable final model, and inspect stage usage in traces. Set limits on calls, context, output, concurrency, and deadlines.
-
-## What Prism does
-
-Prism is a model-composition proxy that serves the OpenAI Chat Completions API. A profile defines the physical models and workflow behind a public alias. You can choose a direct call, vision → text/reasoning, draft → review → synthesis, plain-text preparation → final answer, or source-backed evidence extraction → synthesis.
-
-For example, `prism-balanced` uses free Nano for ordinary text and Super when JSON is required. `prism-vision-reasoning` uses Nano to inspect an image, then Super to answer from its observations. Your client selects the alias; Prism executes the configured stages and returns the result through the same endpoint.
-
-Prism is alpha software. Observation-based preparation can lose information; source-backed evidence policies validate quote provenance, which does not prove correctness or recall. Qualify models on your own workload.
-
-## How it works
-
-**One call from your application. One or more model calls inside Prism. One response back.** Prism acts as a transparent proxy at the Chat Completions interface: your client selects a public model alias while Prism handles the configured stages. Models can run locally, behind cloud APIs, or across both.
-
-![Prism routes one API request through direct execution, preparation and synthesis, or drafting, review and synthesis](https://raw.githubusercontent.com/homerquan/mirrorneuron-prism/main/docs/assets/prism-flow.png)
-
-[Diagram source](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/assets/prism-flow.mmd)
-
-The diagram shows three representative paths. Source-backed evidence policies can fan out across multiple workers, then synthesize their results. Every path stays within the profile's declared limits, and traces expose which physical models ran. The proxy keeps the client interface consistent; the answer, latency, and cost depend on the selected workflow.
-
-### Request classification with Laya
-
-Prism uses [Laya](https://github.com/NandhaKishorM/laya), a local typed-decision engine, to classify requests for routing and choose among eligible execution policies. The default checkpoint is `convaiinnovations/laya-typed-decisions`, prepared on CPU at server startup. Laya receives a bounded instruction sample and plan metadata; source documents remain outside its decision input.
-
-Prism checks feasible plans before asking Laya to choose. A confident, valid choice selects an existing policy; abstention, low confidence, or decision-inference failure uses the feasible rules fallback. Fixed profiles and requests with a single eligible policy skip decision inference. Laya's confidence is a routing signal, not an answer-quality guarantee. See [execution policies](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/execution-policies.md) for the full decision flow.
-
-### Choose your cost–quality tradeoff
-
-| Workflow | Cost and latency | Quality consideration |
-|---|---|---|
-| Direct | One model call, without preparation/review overhead | The chosen model handles the original request itself |
-| Small/free preparation → final model | Can reduce premium input when source context is condensed; adds a worker call | Notes can omit facts or qualifications; validate task results |
-| Vision preparation → final model | Adds image interpretation before text/reasoning synthesis | Enables a text-only final model to use images through potentially lossy observations |
-| Draft → review → synthesis | Adds drafting and review calls | Review can catch problems, but improvements need workload evidence |
-
-Use profiles to decide where to spend model work, then benchmark the result against a direct baseline. Cheaper input, stronger final models, and extra review each change the tradeoff; none establishes equivalent quality by itself. Optional [cost/power selection](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/model-optimization.md) ranks feasible assignments using configured prices and operator ratings. The [live pilot](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/evaluations/2026-10-04-openrouter/benchmark-results.md) shows measured savings alongside quality and latency regressions.
-
-## Start with free OpenRouter models
-
-Try the included free-model profiles with an OpenRouter key. Install [mirrorneuron-prism from PyPI](https://pypi.org/project/mirrorneuron-prism/) with Python 3.11 or later.
+These profile commands are new in this checkout. Install from source with Python 3.11+; the published 0.3.1 package has the older `serve --config` interface.
 
 ```sh
-python -m pip install mirrorneuron-prism
-mkdir prism-demo && cd prism-demo
-prism init --preset openrouter
+git clone https://github.com/homerquan/mirrorneuron-prism.git
+cd mirrorneuron-prism
+python -m pip install .
 export OPENROUTER_API_KEY='your-openrouter-key'
 export PRISM_API_KEY='your-prism-client-secret'
-prism validate
-prism profiles
-prism serve
+prism start --profile prism-balanced
 ```
 
-First startup may download the required Laya checkpoint and prepares it on CPU. The server defaults to `http://127.0.0.1:8080`. The OpenRouter preset exclusively uses free Nano Omni, Super, and Ultra models; upstream credentials and free-tier quotas still apply.
+The repository already includes the model and profile files. First startup prepares Laya's CPU routing checkpoint and may download weights. The server is ready at `http://127.0.0.1:8080` after startup completes. This profile uses OpenRouter models with explicit `:free` IDs; upstream availability and quotas apply.
+
+In another terminal, set the same `PRISM_API_KEY` and send a request:
 
 ```sh
 curl --fail-with-body http://127.0.0.1:8080/v1/chat/completions \
   -H "Authorization: Bearer $PRISM_API_KEY" -H 'Content-Type: application/json' \
-  -d '{"model":"prism-balanced","messages":[{"role":"user","content":"Explain decorators in Python briefly."}],"max_completion_tokens":4096}'
+  -d '{"model":"prism-balanced","messages":[{"role":"user","content":"Explain Python decorators in three sentences."}],"max_completion_tokens":4096}'
 ```
 
-For explicit anonymous serving, use `prism serve --no-auth`. Upstream credentials remain required. Clients share anonymous trace access in this mode; use it on a trusted network.
+To create a separate deployment directory after installation:
 
-## Pick a workflow
+```sh
+mkdir prism-demo && cd prism-demo
+prism init --preset openrouter
+prism start --profile prism-balanced
+```
 
-| Free-preset alias | Behavior |
-|---|---|
-| `prism-balanced` | Nano text; Super when JSON is required |
-| `prism-vision-llm` / `prism-omni-llm` | Nano interprets images, Ultra writes the answer |
-| `prism-vision-reasoning` | Nano interprets images, Super writes the answer |
-| `prism-reasoning-image` / `prism-reasoning-omni` | Super drafts/reviews, Nano finishes; Super finishes JSON |
-| `prism-llm-omni` | Ultra drafts, Super reviews, Nano finishes; Super finishes JSON |
-| `prism-nano-synthesis` | Nano prepares text context, Super finishes |
-| `prism` / `prism-evidence` | Automatic or fixed source-backed evidence routing |
+`init` writes `models/` and `profiles/` and never overwrites existing files. Use `--preset openai`, `claude`, `gemini`, `local`, or `providers` for other samples. Cloud keys are read from environment variables.
 
-Vision means image understanding with text output. Additional omni modalities and image generation are not implemented. Nano's direct alias deliberately rejects JSON requirements; profiles use an explicit `structured_output_model` instead.
+## Choose your provider and workflow
 
-For an image plus JSON output, choose a vision-synthesis alias such as `prism-vision-reasoning` so pixels reach Nano and structured final output comes from Super.
+Set `PRISM_API_KEY` plus the upstream key, then start one of these included profiles:
 
-[Free-model setup and live results](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/openrouter-nemotron-mix.md) · [Native OpenAI / Claude / Gemini examples](https://github.com/homerquan/mirrorneuron-prism/blob/main/examples/standalone/providers/README.md)
+| Profile | Work performed | Upstream key |
+|---|---|---|
+| `prism-openai-direct` | One OpenAI Luna call | `OPENAI_API_KEY` |
+| `prism-openai` | OpenAI Luna extracts evidence; Astra finishes when needed | `OPENAI_API_KEY` |
+| `prism-claude-direct` / `prism-claude` | Haiku alone / Haiku evidence → Opus | `ANTHROPIC_API_KEY` |
+| `prism-gemini-direct` / `prism-gemini` | Flash-Lite alone / Flash-Lite evidence → Flash | `GEMINI_API_KEY` |
+| `nano-openai` | Free Nano text preparation → OpenAI Astra | `OPENROUTER_API_KEY` + `OPENAI_API_KEY` |
+| `prism-openai-reviewed` | Luna draft → Astra review → Astra answer | `OPENAI_API_KEY` |
+| `prism-vision-reasoning` | Free Nano image observations → free Super answer | `OPENROUTER_API_KEY` |
+| `prism-local-direct` | Docker Model Runner Gemma4 at localhost:12434 | None upstream |
+| `prism` | Local Gemma preparation → Spark Nemotron when needed; zero token rates | None upstream |
+| `prism-openrouter` | Free Super evidence → free Ultra when needed | `OPENROUTER_API_KEY` |
+
+```sh
+export OPENAI_API_KEY='your-openai-key'
+prism start --profile prism-openai --show-cost
+```
+
+The request's `model` must match the started profile's `id`. Only that profile is served, and only its referenced models are loaded. Other providers' keys are unnecessary. `auto` prefers a fitting direct request; evidence routing needs explicit source blocks. See [usage and sources](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/usage.md).
+
+Native provider examples use real SDK transports and documented model IDs. They have configuration and local protocol-fixture coverage; live paid-provider qualification remains account specific. [Provider samples and sources](https://github.com/homerquan/mirrorneuron-prism/blob/main/examples/standalone/providers/README.md).
+
+## Define once, combine freely
+
+Each `models/MODEL_ID.json` holds its physical name, provider, endpoint, environment key, timeouts, inference defaults, capabilities, token bounds, concurrency, and optional prices. Each `profiles/NAME.json` holds model references and workflow limits. Connection settings stay in the model file.
+
+```text
+models/
+  openai-small.json
+  openai-strong.json
+  claude-small.json
+  gemini-small.json
+profiles/
+  prism-openai-direct.json
+  prism-openai.json
+  prism-openai-reviewed.json
+```
+
+Copy a profile, change its `id` and stage model IDs, then start it by name or path:
+
+```sh
+prism profiles
+prism models --profile prism-openai
+prism validate --profile profiles/prism-openai.json
+prism start --profile profiles/prism-openai.json
+```
+
+[Copyable model and profile definitions](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/model-config-capacity.md). Existing combined configurations still work through `prism serve --config PATH`.
+
+## See token spend and estimated savings
+
+In a model definition, set both prices in USD per million tokens:
+
+```json
+"input_cost_per_million": "$1/m",
+"output_cost_per_million": "$5/m"
+```
+
+Numbers such as `1` and `5` also work. `prism start --profile NAME --show-cost` opens a **full-screen terminal dashboard** with cumulative spend, estimated savings in dollars and percent, input/output tokens, and usage per model. It refreshes while requests run; Ctrl+C stops the server, restores the terminal, and prints a final summary. `--json` or redirected output keeps ordinary JSON reports. Spend uses each physical call's provider-reported **input and output** tokens and that model's configured rates, including all mixing stages and server-side capacity probes. Missing prices or usage keep the total visibly incomplete.
+
+Savings compare completed, fully priced requests with the profile's final/direct model (or `cost_baseline_model`). Mixed routes estimate the original text input with a shared tokenizer and reuse the final reported output count. Identical direct routes show zero savings; higher mixing cost shows negative savings. Image requests and requests that cannot fit the baseline are excluded from estimates. Free profiles retain zero rates. These are token-cost estimates, without provider discounts or a claim of equal answer quality. [Calculation and API details](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/cost-tracking.md).
+
+To try the dashboard with real OpenRouter calls and hypothetical prices:
+
+```sh
+prism start --profile prism-mock-cost --show-cost --no-auth
+# In another terminal, from this checkout:
+python examples/standalone/cost_demo.py --no-auth
+```
+
+Set `OPENROUTER_API_KEY` before starting Prism. The demo uses OpenRouter's free Nemotron Super worker and Ultra final model with separate, explicitly hypothetical rates. Only the prices are simulated; responses and reported tokens are real. Regular OpenRouter model definitions retain zero rates, and `prism` remains the local Gemma/Spark profile. The demo ships with `prism init --preset openrouter`; [rates and a copyable request](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/cost-tracking.md#try-openrouter-with-hypothetical-prices).
 
 ## Keep your OpenAI client
 
@@ -121,62 +133,39 @@ answer = client.chat.completions.create(
 print(answer.choices[0].message.content)
 ```
 
-Chat Completions supports ordinary text, image inputs, tools on direct routes, and SSE. Multi-stage and JSON-constrained streams are delivered after validation. Responses API is not implemented. For a guaranteed requested shape, use JSON Schema and retain task-level checks.
-
-## Inspect and qualify
-
-```sh
-prism --help
-prism models
-prism profiles --json > profiles.json
-prism doctor --probe-backends
-prism capacity --model prism-vision-reasoning
-prism trace show prism-REQUEST_ID
-```
-
-Terminal output uses tables; redirected results are JSON. Use `--json`, `--output table`, or `NO_COLOR=1` explicitly. Inventory capabilities are declarations; capacity results come from live challenges and distinguish failures from inconclusive upstream errors.
-
-The [live six-task pilot](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/evaluations/2026-10-04-openrouter/benchmark-results.md) measured coding, copywriting, support, and summaries. Nine matched completed pairs showed **56.3% lower hypothetical premium token cost**, using free Nemotron tokens priced like GPT-6 Astra / Claude Opus. Across all attempts, acceptance fell **9/12 → 6/12** and mean latency rose **4.83s → 19.96s**. These are workload tradeoffs, not a production savings or frontier-model quality claim. [Qualified marketing narrative](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/evaluations/2026-10-04-openrouter/marketing-narrative.md).
+Install the client with `python -m pip install openai`. Prism supports Chat Completions, text, image understanding, direct tool calls, JSON validation, and SSE. Multi-stage and JSON-constrained streams are buffered until validation. Responses, image generation, audio, and video are not implemented. Preparation can lose information; evaluate your workload before relying on a combination.
 
 ## Run with Docker
 
 ```sh
-docker build -t mirrorneuron-prism:0.3.1 .
+docker build -t mirrorneuron-prism:dev .
 docker run --rm -p 127.0.0.1:8080:8080 \
   -e OPENROUTER_API_KEY -e PRISM_API_KEY \
   -v prism-huggingface:/home/prism/.cache/huggingface \
-  mirrorneuron-prism:0.3.1
+  mirrorneuron-prism:dev
 ```
 
-Or run `docker compose up --build`. [Custom config, checkpoint caching, and anonymous Docker serving](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/usage.md#docker).
+Or use `docker compose up --build`. The image starts `prism-balanced`. [Custom profiles, caching, and auth](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/usage.md#docker).
 
-## Documentation and development
+## Inspect and develop
 
-| Guide | Covers |
-|---|---|
-| [Usage](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/usage.md) | Installation, auth, CLI, JSON, Docker, local models, streaming, and traces |
-| [Model configuration and capacity](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/model-config-capacity.md) | LiteLLM transports, shared registries, and live probes |
-| [Execution policies](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/execution-policies.md) | Stage graphs, limits, and Laya routing |
-| [Copyable curl examples](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/flagship-curl-cases.md) | Requests exercised by integration tests |
-| [Benchmarking](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/benchmarking.md) | Reproducible runs and metric limitations |
-| [Release instructions](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/releasing.md) | Build, validate, install, and manually publish |
-| [Implemented contract](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/standalone-contract.md) | Guarantees and boundaries |
+```sh
+prism doctor --profile prism-balanced --probe-backends
+prism capacity --profile prism-balanced
+prism trace show prism-REQUEST_ID
+```
+
+Doctor/capacity make real upstream calls. Capabilities in model JSON are declarations; capacity reports live observations. Terminal output uses tables; redirected output is JSON. Use `--json` or `NO_COLOR=1` explicitly.
+
+[Usage](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/usage.md) · [Execution policies](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/execution-policies.md) · [Cost tracking](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/cost-tracking.md) · [Benchmarking](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/benchmarking.md) · [Implemented contract](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/standalone-contract.md) · [Contributing](https://github.com/homerquan/mirrorneuron-prism/blob/main/CONTRIBUTING.md)
 
 ```sh
 python -m pip install '.[dev]'
 ruff check src tests examples
-python -m pytest --cov=prism --cov-report=term-missing -q
+python -m pytest -q
 python -m pytest tests/standalone -q -m integration -o addopts=''
 python -m build
-python -m twine check dist/mirrorneuron_prism-0.3.1*
+python -m twine check dist/*
 ```
 
-CI exercises Python 3.11–3.13. Live provider qualification is separate from deterministic tests. The release workflow is manual; the published distribution ships bundled presets, benchmark fixtures, typing metadata, and the MIT license.
-
-## Contributing and support
-
-Bug reports, documentation improvements, provider fixtures, and focused pull requests are welcome. Read the [contribution guide](https://github.com/homerquan/mirrorneuron-prism/blob/main/CONTRIBUTING.md) for setup, validation, and review expectations. For bugs or feature requests, [open an issue](https://github.com/homerquan/mirrorneuron-prism/issues) with a minimal reproducible example. See the [security policy](https://github.com/homerquan/mirrorneuron-prism/blob/main/SECURITY.md) for reporting vulnerabilities privately.
-
-## License
-
-Prism is open source under the [MIT License](https://github.com/homerquan/mirrorneuron-prism/blob/main/LICENSE). Copyright © 2026 mirrorneuron-prism.
+Deterministic HTTP and decision fixtures are confined to tests. Production backends call the configured provider; upstream failures remain visible. See the [live pilot](https://github.com/homerquan/mirrorneuron-prism/blob/main/docs/evaluations/2026-10-04-openrouter/benchmark-results.md) for measured quality, cost, and latency tradeoffs. Prism is alpha software, licensed under [MIT](https://github.com/homerquan/mirrorneuron-prism/blob/main/LICENSE).

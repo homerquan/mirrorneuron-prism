@@ -1,4 +1,4 @@
-"""Run after prism init, editing models.json, and prism serve."""
+"""Run after prism init --preset openrouter and prism start --profile prism-balanced."""
 
 import os
 
@@ -8,7 +8,7 @@ client = OpenAI(
     base_url="http://127.0.0.1:8080/v1", api_key=os.environ["PRISM_API_KEY"]
 )
 response = client.chat.completions.create(
-    model="prism",
+    model="prism-balanced",
     messages=[{"role": "user", "content": "Explain virtual context in two sentences."}],
     max_completion_tokens=200,
 )

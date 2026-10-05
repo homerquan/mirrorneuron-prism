@@ -181,6 +181,7 @@ class LiteLLMBackend:
             transport=GuardedTransport(self.client), timeout=None
         )
         self.native_handler = None
+        self.cost_tracker = None
         groups = {}
         for model in models.values():
             key = self.engine_key(model)
@@ -382,13 +383,17 @@ class LiteLLMBackend:
         finally:
             with anyio.CancelScope(shield=True):
                 await close_responses(responses)
-                await ledger.finish(
-                    reservation,
-                    usage,
-                    status,
-                    (time.monotonic() - started) * 1000,
-                    diagnostics=diagnostics,
-                )
+                try:
+                    await ledger.finish(
+                        reservation,
+                        usage,
+                        status,
+                        (time.monotonic() - started) * 1000,
+                        diagnostics=diagnostics,
+                    )
+                finally:
+                    if self.cost_tracker:
+                        self.cost_tracker.record_call(model, usage, reservation)
 
     async def stream(self, model, messages, parameters, output, ledger, reservation):
         started, usage, status, diagnostics = time.monotonic(), None, "failed", {}
@@ -512,13 +517,17 @@ class LiteLLMBackend:
                     if "wire_usage" in wire:
                         usage = wire["wire_usage"]
                 await close_responses(responses)
-                await ledger.finish(
-                    reservation,
-                    usage,
-                    status,
-                    (time.monotonic() - started) * 1000,
-                    diagnostics=diagnostics,
-                )
+                try:
+                    await ledger.finish(
+                        reservation,
+                        usage,
+                        status,
+                        (time.monotonic() - started) * 1000,
+                        diagnostics=diagnostics,
+                    )
+                finally:
+                    if self.cost_tracker:
+                        self.cost_tracker.record_call(model, usage, reservation)
 
 
 # Backwards-compatible import for integrations that inject an HTTP test client.

@@ -1,0 +1,83 @@
+{
+  "openrouter": {
+    "profiles": [
+      "prism-openrouter",
+      "prism-direct",
+      "prism-evidence",
+      "prism-vision-llm",
+      "prism-omni-llm",
+      "prism-vision-reasoning",
+      "prism-reasoning-image",
+      "prism-reasoning-omni",
+      "prism-llm-omni",
+      "prism-balanced",
+      "prism-nano-synthesis",
+      "prism-mock-cost"
+    ],
+    "default": "prism-balanced"
+  },
+  "providers": {
+    "profiles": [
+      "prism-openai",
+      "prism-openai-reviewed",
+      "prism-openai-vision",
+      "nano-openai",
+      "omni-openai",
+      "prism-claude",
+      "prism-claude-reviewed",
+      "prism-claude-vision",
+      "nano-claude",
+      "omni-claude",
+      "prism-gemini",
+      "prism-gemini-reviewed",
+      "prism-gemini-vision",
+      "nano-gemini",
+      "omni-gemini",
+      "prism-gemini-pro",
+      "prism-openai-direct",
+      "prism-claude-direct",
+      "prism-gemini-direct"
+    ],
+    "default": "prism-openai-direct"
+  },
+  "local": {
+    "profiles": [
+      "prism",
+      "prism-local",
+      "prism-local-direct",
+      "prism-local-evidence",
+      "prism-local-batched",
+      "prism-local-verified",
+      "prism-local-retrieve"
+    ],
+    "default": "prism-local-direct"
+  },
+  "openai": {
+    "profiles": [
+      "prism-openai",
+      "prism-openai-reviewed",
+      "prism-openai-vision",
+      "prism-openai-direct"
+    ],
+    "default": "prism-openai-direct"
+  },
+  "claude": {
+    "profiles": [
+      "prism-claude",
+      "prism-claude-reviewed",
+      "prism-claude-vision",
+      "prism-claude-direct"
+    ],
+    "default": "prism-claude-direct"
+  },
+  "gemini": {
+    "profiles": [
+      "prism-gemini",
+      "prism-gemini-reviewed",
+      "prism-gemini-vision",
+      "prism-gemini-pro",
+      "prism-gemini-direct"
+    ],
+    "default": "prism-gemini-direct"
+  }
+}

@@ -1,6 +1,6 @@
 # Releasing mirrorneuron-prism
 
-Version **0.3.0** was published to [PyPI](https://pypi.org/project/mirrorneuron-prism/0.3.0/) on October 4, 2026 (America/New_York), through [Release to PyPI #1](https://github.com/homerquan/mirrorneuron-prism/actions/runs/37257249826). The commands below target the **0.3.1** description fix. Distribution: `mirrorneuron-prism`; import and CLI: `prism`. Future releases use the same manual workflow. Update the version and artifact filenames before building a later release; PyPI artifacts cannot be replaced.
+Version **0.3.0** was published to [PyPI](https://pypi.org/project/mirrorneuron-prism/0.3.0/) on October 4, 2026 (America/New_York), through [Release to PyPI #1](https://github.com/homerquan/mirrorneuron-prism/actions/runs/37257249826). The current checkout includes unreleased profile/cost changes beyond the published **0.3.1** description fix. Choose a new version before publishing those changes. Distribution: `mirrorneuron-prism`; import and CLI: `prism`. Future releases use the same manual workflow. Update the version and artifact filenames before building a later release; PyPI artifacts cannot be replaced.
 
 ## Build and verify
 
@@ -27,9 +27,9 @@ python -m venv /tmp/prism-release-check
 cd /tmp
 /tmp/prism-release-check/bin/prism --version
 /tmp/prism-release-check/bin/prism init --preset openrouter --out-dir /tmp/prism-free-check
-/tmp/prism-release-check/bin/prism validate --config /tmp/prism-free-check/prism.json
+/tmp/prism-release-check/bin/prism validate --profile /tmp/prism-free-check/profiles/prism-balanced.json
 /tmp/prism-release-check/bin/prism init --preset providers --out-dir /tmp/prism-providers-check
-/tmp/prism-release-check/bin/prism validate --config /tmp/prism-providers-check/prism.json
+/tmp/prism-release-check/bin/prism validate --profile /tmp/prism-providers-check/profiles/prism-openai.json
 /tmp/prism-release-check/bin/prism benchmark run --help
 ```
 
@@ -46,7 +46,7 @@ docker run --rm -p 127.0.0.1:8080:8080 \
   mirrorneuron-prism:0.3.1
 ```
 
-Check `GET /health`, `/v1/models` with authentication, and a selected completion. Verify missing default client credentials prevent startup, and the explicit `serve ... --no-auth` command works without a Prism key. The image runs as a non-root user and uses CPU torch. Secrets are passed at runtime, never baked into the image.
+Check `GET /health`, `/v1/models` with authentication, and a selected completion. Verify missing default client credentials prevent startup, and the explicit `start --profile ... --no-auth` command works without a Prism key. The image runs as a non-root user and uses CPU torch. Secrets are passed at runtime, never baked into the image.
 
 ## Publish manually
 

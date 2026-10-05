@@ -12,14 +12,14 @@ Start the configured physical model server and Prism in one terminal:
 
 ```sh
 export PRISM_API_KEY='your-configured-secret'
-prism serve --config prism.json
+prism serve --config src/prism/resources/prism.json
 ```
 
 In another terminal, use the same key and run:
 
 ```sh
 export PRISM_API_KEY='your-configured-secret'
-prism benchmark run --config prism.json
+prism benchmark run --config src/prism/resources/prism.json
 ```
 
 This defaults to `prism-direct` versus `prism-evidence`, three measured repetitions per case, one warmup pair, temperature zero, and a 2048-token public output budget. The six sources are short enough for both routes, so this comparison measures the overhead and reference quality of orchestration on the same inputs. It does not establish a long-context recall advantage. Pass `--candidate prism-batched`, `prism-verified`, or `prism-retrieve` to measure another fixed policy. Retrieval has focused coverage, so its reference score alone cannot establish complete coverage. For automatic Laya routing, pass `--candidate prism` and inspect each trace's chosen strategy. To test a stronger baseline, configure another public alias in the server JSON and pass it with `--baseline`.
@@ -29,7 +29,7 @@ Laya is required and loads before the server becomes ready. Fixed policies skip 
 The command prints progress to stderr and JSON results to stdout. It creates a fresh timestamped folder under `benchmark-results/`, or you can choose a new folder:
 
 ```sh
-prism benchmark run --config prism.json \
+prism benchmark run --config src/prism/resources/prism.json \
   --baseline prism-direct --candidate prism-evidence \
   --repeats 3 --warmup 1 --output-tokens 2048 \
   --out-dir benchmark-results/gemma-run-a

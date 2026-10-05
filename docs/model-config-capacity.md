@@ -2,9 +2,74 @@
 
 Prism calls `litellm.acompletion()` inside its backend adapter. It does not start a LiteLLM proxy or Router. Prism retains authentication, routing, context admission, ledgers, output validation, streaming, and cancellation. SDK retries and automatic parameter dropping are disabled. OpenAI-compatible endpoints receive the original messages and configured model name, including vendor namespaces; native transports use LiteLLM's vendor translation. CLI help and configuration validation keep SDK imports lazy. The SDK uses its bundled cost map, but Prism's capacity results never come from that map.
 
-## Configure each model once
+## One model file per connection
 
-`models_file` accepts a JSON file or a directory of `*.json` files, sorted by filename. Paths resolve relative to `prism.json`; absolute paths also work. The existing `{ "models": [...] }` registry remains supported. A single raw model object is also accepted. Duplicate IDs are rejected.
+`prism start --profile NAME` reads `profiles/NAME.json`, then loads only its referenced `models/MODEL_ID.json` files. The model's `id` matches its filename. `name` is the physical model name. All connections and credentials belong in the model definition:
+
+```json
+{
+  "id": "claude-small",
+  "name": "anthropic/claude-haiku-4-5",
+  "provider": "anthropic",
+  "base_url": "https://api.anthropic.com",
+  "api_version": null,
+  "api_key_env": "ANTHROPIC_API_KEY",
+  "timeout_seconds": 300,
+  "rate_limit_rpm": null,
+  "parameters": {},
+  "provider_options": {},
+  "context_window": 131072,
+  "max_output_tokens": 16384,
+  "safety_margin": 256,
+  "concurrency": 2,
+  "capabilities": ["text", "stream", "image", "tools", "json_object", "json_schema"],
+  "input_cost_per_million": "$1/m",
+  "output_cost_per_million": "$5/m"
+}
+```
+
+The Haiku rates match the documented standard input/output rates in the [Claude model overview](https://platform.claude.com/docs/en/models/overview), checked October 5, 2026; set your account's actual rates. Null/omitted rates mean unknown, while zero means free. [Spend and estimated savings](cost-tracking.md) use both input and output usage. Dollar caps and optimization also accept these normalized price strings.
+
+Set `cost_rates_are_hypothetical: true` when deliberately simulating prices. `--show-cost` and `/v1/prism/costs` label the resulting totals as hypothetical. The separate `prism-mock-cost` sample exercises real OpenRouter Super/Ultra calls with simulated rates; their ordinary model definitions retain zero prices. Regular `prism` uses local Gemma/Spark backends with zero token rates. Hypothetical rates also affect ledger dollar caps and optimization, so keep them in separate model definitions as the example does.
+
+`provider` selects the SDK transport explicitly. `base_url` includes the provider's endpoint; `api_version` is available for versioned transports such as Azure. `api_key_env` names the environment variable and never stores its value. Unauthenticated local models omit it. Inline `api_key` is rejected in standalone definitions. Timeouts, optional RPM, concurrency, capacities, image reserve, inference `parameters`, and allowlisted `provider_options` remain operator settings. Samples in [models/](../models) include OpenAI, Claude, Gemini, OpenRouter, and Docker Model Runner. Native examples list their official model sources in the [provider guide](../examples/standalone/providers/README.md).
+
+## One profile file per workflow
+
+For `profiles/prism-claude.json`:
+
+```json
+{
+  "schema_version": 1,
+  "id": "prism-claude",
+  "models_dir": "../models",
+  "profile": {
+    "direct": "claude-strong",
+    "worker": "claude-small",
+    "synthesizer": "claude-strong",
+    "structured_output_model": "claude-strong",
+    "strategy": "auto",
+    "public_max_output_tokens": 4096,
+    "worker_output_tokens": 4096,
+    "limits": {"max_calls": 16, "deadline_seconds": 300, "max_parallel": 2}
+  }
+}
+```
+
+`models_dir` resolves relative to the profile file. The file can also include `server`, `decision`, and `capacity` objects with the same settings as older configs. The included profiles pin the Laya revision. Model references include worker/final/verifier assignments, optional evidence helpers, the optimization pool, and optional `cost_baseline_model`. Unknown references, mismatched model IDs, unsafe filename IDs, contradictory output caps, and recursive endpoints fail validation. Only the profile's `id` is exposed through `/v1/models`; raw model IDs do not automatically become callable aliases.
+
+```sh
+export ANTHROPIC_API_KEY='your-anthropic-key'
+export PRISM_API_KEY='your-prism-client-secret'
+prism validate --profile prism-claude
+prism start --profile prism-claude --show-cost
+```
+
+Use that same `id` in Chat Completions. `prism profiles` lists available workflows; `prism models --profile NAME` shows their connections' metadata and credential readiness, without printing keys. The server prechecks only loaded upstream credential variables.
+
+## Legacy registries and provider JSON
+
+For `prism serve --config PATH`, `models_file` accepts a JSON file or a directory of `*.json` files, sorted by filename. Paths resolve relative to `prism.json`; absolute paths also work. The existing `{ "models": [...] }` registry remains supported. A single raw model object is also accepted. Duplicate IDs are rejected.
 
 The provider JSON format used by GomokuBench is supported directly:
 

@@ -62,7 +62,7 @@ core-metadata-version = "2.4"
 
 [tool.hatch.build.targets.sdist]
 core-metadata-version = "2.4"
-include = ["/src", "/tests", "/examples", "/models", "/prism.json", "/prism-openrouter.json", "/Dockerfile", "/.dockerignore", "/compose.yaml", "/README.md", "/CONTRIBUTING.md", "/SECURITY.md", "/CHANGELOG.md", "/LICENSE", "/pyproject.toml", "/docs", "/prism_standalone_proxy_design.md"]
+include = ["/src", "/tests", "/examples", "/models", "/profiles", "/Dockerfile", "/.dockerignore", "/compose.yaml", "/README.md", "/CONTRIBUTING.md", "/SECURITY.md", "/CHANGELOG.md", "/LICENSE", "/pyproject.toml", "/docs", "/prism_standalone_proxy_design.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

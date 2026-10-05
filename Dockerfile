@@ -21,4 +21,4 @@ EXPOSE 8080
 HEALTHCHECK --start-period=300s --interval=30s --timeout=5s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"
 ENTRYPOINT ["prism"]
-CMD ["serve", "--config", "/app/prism.json", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["start", "--profile", "/app/profiles/prism-balanced.json", "--host", "0.0.0.0", "--port", "8080"]

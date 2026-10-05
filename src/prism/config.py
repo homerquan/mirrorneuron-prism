@@ -2,11 +2,12 @@
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .errors import OptimizationConfigurationError, PrismError
 from .policies import PolicyName
@@ -52,7 +53,22 @@ class RawModel(StrictModel):
     )
     input_cost_per_million: float | None = Field(default=None, ge=0)
     output_cost_per_million: float | None = Field(default=None, ge=0)
+    cost_rates_are_hypothetical: bool = Field(default=False, strict=True)
     power_rating: int | None = Field(default=None, ge=1, le=10, strict=True)
+
+    @field_validator("input_cost_per_million", "output_cost_per_million", mode="before")
+    @classmethod
+    def price_per_million(cls, value):
+        if isinstance(value, str):
+            match = re.fullmatch(
+                r"\s*\$?([0-9]+(?:\.[0-9]+)?)\s*/\s*(?:1?m|million)\s*", value, re.I
+            )
+            if not match:
+                raise ValueError('price must be USD per million tokens, e.g. "$5/m"')
+            return float(match[1])
+        if isinstance(value, bool):
+            raise ValueError("price must be a number or a per-million price string")
+        return value
 
     @model_validator(mode="after")
     def endpoint(self):
@@ -165,6 +181,7 @@ class Profile(StrictModel):
     synthesizer: str | None = None
     structured_output_model: str | None = None
     verifier: str | None = None
+    cost_baseline_model: str | None = None
     strategy: Literal[
         "auto",
         "direct",
@@ -270,9 +287,15 @@ def load_config(path):
     models = {model.id: model for model in raw}
     if not models or len(models) != len(raw):
         raise ValueError("raw model IDs must be nonempty and unique")
+    return validate_config(config, models, expose_raw_aliases=True)
+
+
+def validate_config(config, models, *, expose_raw_aliases=False):
+    """Apply the same admission checks to standalone profiles and legacy configs."""
+    raw = list(models.values())
     # Profiles only define orchestration. Every registry combination is callable
     # without repeating any physical model metadata in prism.json.
-    for model in raw:
+    for model in raw if expose_raw_aliases else []:
         config.profiles.setdefault(
             model.id,
             Profile(
@@ -317,6 +340,7 @@ def load_config(path):
                 profile.synthesizer,
                 profile.structured_output_model,
                 profile.verifier,
+                profile.cost_baseline_model,
                 profile.evidence_compaction.model
                 if profile.evidence_compaction
                 else None,

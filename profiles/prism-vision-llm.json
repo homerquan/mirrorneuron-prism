@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "prism-vision-llm",
+  "models_dir": "../models",
+  "profile": {
+    "direct": "nemotron-ultra",
+    "worker": "nemotron-nano-reasoning",
+    "synthesizer": "nemotron-ultra",
+    "strategy": "auto",
+    "allowed_policies": [
+      "direct",
+      "vision_synthesis"
+    ],
+    "public_max_output_tokens": 4096,
+    "worker_output_tokens": 4096,
+    "intermediate_max_bytes": 8192,
+    "limits": {
+      "max_calls": 2,
+      "max_parallel": 1,
+      "deadline_seconds": 300
+    }
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "api_key_env": "PRISM_API_KEY"
+  },
+  "decision": {
+    "mode": "route",
+    "model": "convaiinnovations/laya-typed-decisions",
+    "revision": "1a793eb568e6718f15941d08f85432581df534e3",
+    "min_option_confidence": 0.7
+  },
+  "capacity": {
+    "probe_timeout_seconds": 120,
+    "output_tokens": 4096,
+    "max_parallel": 1,
+    "ttl_seconds": 300
+  }
+}

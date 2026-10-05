@@ -25,7 +25,7 @@ python -m pytest -q --cov=prism --cov-report=term --cov-fail-under=80
 python -m pytest tests/standalone -q -m integration -o addopts=''
 ```
 
-The integration suite starts temporary localhost servers and exercises real HTTP, SDK, and curl requests. Install `curl` to run those checks. CI runs Python 3.11–3.13 and enforces the coverage floor. For packaging changes, also run `python -m build` and `python -m twine check dist/mirrorneuron_prism-0.3.0*`; use the current project version for later releases.
+The integration suite starts temporary localhost servers and exercises real HTTP, SDK, and curl requests. Install `curl` to run those checks. CI runs Python 3.11–3.13 and enforces the coverage floor. For packaging changes, also run `python -m build` and `python -m twine check dist/*`; use the current project version for later releases.
 
 For provider or model changes, distinguish local protocol fixtures from live qualification. Report which checks actually ran, retain failed/inconclusive outcomes, and explain any pricing assumptions. Catalog metadata alone is not proof of JSON, image, or reasoning behavior. Live calls can consume upstream quota or incur charges.
 

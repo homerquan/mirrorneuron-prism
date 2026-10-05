@@ -51,7 +51,7 @@ JSON-object mode guarantees neither a requested field layout nor its types. Some
 
 ## Reproduction and evidence
 
-Start `prism serve --config prism-openrouter.json --no-auth`, then run:
+Start `prism serve --config src/prism/resources/openrouter/prism.json --no-auth`, then run:
 
 ```sh
 python examples/standalone/openrouter_evaluation.py --no-auth --repeats 2 --out-dir docs/evaluations/NEW-RUN

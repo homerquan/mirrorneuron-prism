@@ -1,11 +1,11 @@
 # Flagship curl cases
 
-These nine requests are runnable examples and the source of request payloads for the test suite. Run Prism with the repository configuration, or generate a new configuration with `prism init` and edit its raw-model JSON. Fixed aliases select each bounded policy even when sample sources are short. Laya is required and prepares on CPU at startup; automatic routing uses the `prism` alias.
+These nine requests are runnable examples and the source of request payloads for the test suite. Run these multi-alias cases with the bundled multi-alias local configuration (`prism serve --config src/prism/resources/prism.json`) after configuring its backends and environment credentials. For one standalone workflow, `prism init` now writes individual model/profile files and `prism start --profile NAME` serves only that alias. Fixed aliases select each bounded policy even when sample sources are short. Laya is required and prepares on CPU at startup; automatic routing uses the `prism` alias.
 
 ```sh
 export PRISM_BASE_URL='http://127.0.0.1:8080/v1'
 export PRISM_API_KEY='your-configured-secret'
-prism serve --config prism.json
+prism serve --config src/prism/resources/prism.json
 ```
 
 Run the curl commands in a second terminal with the same environment variables. `--include` shows response headers, including `X-Request-ID` and the accounting/streaming mode. Answer wording can vary by model. The JSON contracts following each command are read by tests; they describe required HTTP behavior and fixture checks rather than model-quality guarantees. The curl blocks themselves supply the exact tested request bodies.

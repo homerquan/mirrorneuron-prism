@@ -1,6 +1,6 @@
 # Free OpenRouter combinations
 
-The checkout's `prism-openrouter.json` and `models/openrouter-nemotron-mix.json` are mirrored in the installed `prism init --preset openrouter` resources. The existing local `prism.json` remains available. All three upstream slugs explicitly end in `:free`; input/output token prices are zero, with no invented power ratings.
+`prism init --preset openrouter` creates individual model definitions in `models/` and workflows in `profiles/`, matching the checkout's new files. Start one with `prism start --profile prism-balanced` (or another alias below). For the multi-alias smoke/evaluation scripts below, use the bundled config with `prism serve --config src/prism/resources/openrouter/prism.json` from this checkout. All three upstream slugs explicitly end in `:free`; input/output token prices are zero, with no invented power ratings.
 
 ## Physical models
 
@@ -16,7 +16,7 @@ Each uses `OPENROUTER_API_KEY`, concurrency 1, and a 300-second backend timeout.
 
 | Alias | Workflow | JSON final |
 |---|---|---|
-| `prism`, `prism-evidence` | Super typed evidence → Ultra synthesis; `prism` can select direct | Ultra |
+| `prism-openrouter`, `prism-evidence` | Super typed evidence → Ultra synthesis; `prism-openrouter` can select direct | Ultra |
 | `prism-direct` | Ultra direct | Ultra |
 | `prism-vision-llm`, `prism-omni-llm` | Image: Nano observations → Ultra; text: Ultra direct | Ultra |
 | `prism-vision-reasoning` | Image: Nano observations → Super; text: Super direct | Super |
@@ -25,7 +25,7 @@ Each uses `OPENROUTER_API_KEY`, concurrency 1, and a 300-second backend timeout.
 | `prism-balanced` | Nano direct | Super |
 | `prism-nano-synthesis` | Nano plain-text preparation → Super | Super |
 
-Every physical registry ID also gets a direct public alias. Nano's direct alias rejects `response_format` JSON requirements before dispatch. `structured_output_model` switches the profile's direct/final assignment when JSON is required; it does not silently change to an arbitrary provider. Profiles using draft/review still need a JSON-capable reviewer. Request output limits and graph limits remain enforced.
+The bundled multi-alias config also exposes each physical registry ID as a direct public alias; standalone `start --profile` exposes only the selected profile. Nano's direct alias rejects `response_format` JSON requirements before dispatch. `structured_output_model` switches the profile's direct/final assignment when JSON is required; it does not silently change to an arbitrary provider. Profiles using draft/review still need a JSON-capable reviewer. Request output limits and graph limits remain enforced.
 
 For image inputs combined with JSON requirements, use `prism-vision-reasoning`, `prism-vision-llm`, or `prism-omni-llm`: their image worker prepares text for a JSON-capable final. `prism-balanced` and the draft/review aliases switch their direct model to text-only Super for JSON, so combined image+JSON requests on those aliases fail admission. The server does not silently switch to a different profile.
 
@@ -33,15 +33,19 @@ For image inputs combined with JSON requirements, use `prism-vision-reasoning`, 
 
 ## Run and test
 
+The standalone `prism` profile now uses the local Gemma/Spark pair. The retained OpenRouter multi-alias configuration below still calls its automatic workflow `prism`; use `prism-openrouter` when selecting the equivalent standalone profile.
+
+For a selected workflow, use `prism start --profile prism-vision-reasoning`. The commands below use the bundled multi-alias config for comparison and historical live qualification.
+
 ```sh
 export OPENROUTER_API_KEY='your-openrouter-key'
 export PRISM_API_KEY='your-prism-client-secret'
-prism validate --config prism-openrouter.json
-prism profiles --config prism-openrouter.json
-prism doctor --config prism-openrouter.json --probe-backends
-prism capacity --config prism-openrouter.json --model nemotron-nano-reasoning
-prism capacity --config prism-openrouter.json --model prism-vision-reasoning
-prism serve --config prism-openrouter.json
+prism validate --config src/prism/resources/openrouter/prism.json
+prism profiles --config src/prism/resources/openrouter/prism.json
+prism doctor --config src/prism/resources/openrouter/prism.json --probe-backends
+prism capacity --config src/prism/resources/openrouter/prism.json --model nemotron-nano-reasoning
+prism capacity --config src/prism/resources/openrouter/prism.json --model prism-vision-reasoning
+prism serve --config src/prism/resources/openrouter/prism.json
 ```
 
 To explicitly skip client auth, add `--no-auth` to `serve`, `doctor`, and remote trace/benchmark commands. CLI capacity calls upstream directly. With a running server:

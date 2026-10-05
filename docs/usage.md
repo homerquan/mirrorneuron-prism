@@ -1,138 +1,117 @@
 # Using Prism
 
-Prism is a standalone OpenAI-compatible LLM proxy with eight bounded execution policies. A required CPU Laya model chooses among feasible plans: direct execution, independent evidence mapping, batched mapping, verified mapping, focused retrieval, and draft/review/synthesis. Optional cost/power optimization selects stage models from an operator allowlist using JSON ratings and prices plus Laya's task recommendation. Workers extract source-backed facts; Prism checks their quotes against immutable source bytes. The client receives one ordinary assistant response.
+Define physical connections in `models/`, model combinations in `profiles/`, then start one profile. Prism calls local OpenAI-compatible servers and native OpenAI, Anthropic, Gemini, and OpenRouter through LiteLLM. Your client uses Chat Completions and selects the started profile's `id`.
 
-The distribution is **`mirrorneuron-prism`**, the Python package is **`prism`**, and the CLI is **`prism`**. The service calls native vendors and OpenAI-compatible servers through the LiteLLM SDK. A stronger synthesizer is optional; all stages can share one local model. No dependency on MirrorNeuron, OtterDesk, or the local Laya source checkout is required.
+## First answer
 
-This is an alpha implementation with constrained learned routing and several finite execution graphs. It does not claim stronger-model equivalence, a million-token context, complete extraction recall, or general speed/cost improvements. Qualified live pilot results are documented in [the evaluation report](evaluations/2026-10-04-openrouter/benchmark-results.md). See [the implemented contract](standalone-contract.md), [execution policies](execution-policies.md), and [design specification](../prism_standalone_proxy_design.md).
-
-## Free OpenRouter quick start
-
-Use a fresh directory so `init` can create both configuration files. It never overwrites existing files. The checkout also provides `prism-openrouter.json` with the same models and profiles.
+Install this checkout with Python 3.11+ using `python -m pip install .`. The new profile CLI is not part of the published 0.3.1 interface. In the checkout, the files already exist:
 
 ```sh
-python -m pip install mirrorneuron-prism
-mkdir prism-demo && cd prism-demo
-prism init --preset openrouter
 export OPENROUTER_API_KEY='your-openrouter-key'
 export PRISM_API_KEY='your-prism-client-secret'
-prism validate
-prism models
-prism profiles
-prism serve
+prism start --profile prism-balanced
 ```
 
-The free preset uses only explicitly named OpenRouter `:free` models. First startup prepares the required CPU Laya checkpoint; it may download weights. Limits and availability belong to the upstream provider, and failure is reported without an implicit model substitution. See [the free-model combinations](openrouter-nemotron-mix.md).
-
-## Terminal and script output
-
-Prism uses Rich and rich-argparse for help, terminal tables, readiness/error panels, and status spinners. Piped or redirected command results are JSON; `--json` explicitly selects JSON even in a terminal. `--output table` forces human presentation. These flags work before or after the subcommand. `NO_COLOR=1` disables terminal colors.
-
-```sh
-prism --help
-prism models --config prism-openrouter.json --output table
-prism profiles --config prism-openrouter.json --json > profiles.json
-prism capacity --config prism-openrouter.json --model prism-vision-reasoning --json
-```
-
-`models` lists declared capabilities and credential readiness without exposing keys. `capacity` performs live challenges; its results distinguish success, failed checks, and unknown upstream availability. `doctor` without `--probe-backends` validates configuration/authentication but deliberately reports unprobed backends, so it exits 3. Exit codes: 0 command success, 2 command/configuration failure, 3 doctor not ready; argument parsing also exits 2. Capacity command success means the evaluation ran; inspect individual feature scores.
-
-## Explicit client authentication opt-out
-
-```sh
-prism serve --config prism-openrouter.json --no-auth
-prism doctor --config prism-openrouter.json --no-auth --probe-backends
-prism trace show prism-REQUEST_ID --no-auth
-```
-
-`--no-auth` disables only Prism client authentication for that process. It does not waive `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, or any other upstream credential. Default serving requires the configured Prism secret. In anonymous mode, all callers share trace access; keep this mode on trusted networks. CLI `capacity` calls providers directly and therefore needs upstream credentials, not a Prism client key. Benchmark/eval commands also accept `--no-auth` when contacting an anonymous server.
-
-An OpenAI SDK client still requires a nonempty local `api_key` argument; use `api_key="unused"` with an explicitly anonymous Prism server. Raw HTTP needs no Authorization header.
-
-## Choose the JSON-capable final model
-
-The free Nano definition deliberately omits `json_object` and `json_schema`. Its direct alias rejects JSON requirements before dispatch. `prism-balanced` uses Nano for ordinary text and explicitly switches to Super when `response_format` requires JSON. This is configured with `structured_output_model`, whose ID is validated when loading configuration. JSON instructions alone do not request a routing change; use `response_format`.
+First startup prepares Laya on CPU and may download its checkpoint. Wait for server startup, then send a request from another terminal with the same client secret:
 
 ```sh
 curl --fail-with-body http://127.0.0.1:8080/v1/chat/completions \
   -H "Authorization: Bearer $PRISM_API_KEY" -H 'Content-Type: application/json' \
-  -d '{"model":"prism-balanced","messages":[{"role":"user","content":"Return JSON with ok=true."}],"response_format":{"type":"json_schema","json_schema":{"name":"result","strict":true,"schema":{"type":"object","properties":{"ok":{"type":"boolean","enum":[true]}},"required":["ok"],"additionalProperties":false}}},"max_completion_tokens":4096}'
+  -d '{"model":"prism-balanced","messages":[{"role":"user","content":"Explain Python decorators briefly."}],"max_completion_tokens":4096}'
 ```
 
-`json_object` checks valid JSON; `json_schema` additionally validates the requested shape before returning an answer. Prism does not claim every provider implements constrained decoding. In `text_synthesis` and `vision_synthesis`, a Nano worker produces bounded plain text and only the final model receives the caller's JSON requirement. A failed, empty, truncated, or oversized worker result aborts the graph.
+For a fresh deployment directory after installing:
 
-## Native provider samples
+```sh
+mkdir prism-demo && cd prism-demo
+prism init --preset openrouter
+prism start --profile prism-balanced
+```
 
-`prism init --preset providers` creates the combined native-provider example. It includes optional paid APIs, separately from the free preset. See [OpenAI, Claude, and Gemini samples](../examples/standalone/providers/README.md) for environment variables, per-provider configurations, and qualification instructions. These samples passed local configuration/SDK fixture checks, with no live paid-cloud calls.
+`init` writes individual model/profile files, prints the required environment variables and start command, and never overwrites existing destinations. Presets are `openrouter` (default), `openai`, `claude`, `gemini`, `local`, and `providers`. Single-provider presets include direct, automatic evidence, review, and vision workflows. `providers` additionally includes free Nano → native final combinations. Only the selected profile's model files are loaded.
+
+## Select a profile
+
+```sh
+prism profiles
+prism models --profile prism-openai
+prism validate --profile prism-openai
+export OPENAI_API_KEY='your-openai-key'
+prism start --profile prism-openai --show-cost
+# The same profile can be selected by an explicit path:
+prism start --profile /path/to/deployment/profiles/prism-openai.json
+```
+
+`--profile NAME` resolves `profiles/NAME.json` in the working directory. An explicit JSON path also works. `models_dir` resolves relative to the profile file, regardless of your working directory. `prism profiles` lists available files; `prism models` lists the physical models referenced by those files. Both accept `--profile` to inspect one selection. Validation is offline and needs no keys. Startup checks the selected upstream keys before loading the server.
+
+Each `models/MODEL_ID.json` is a single model object whose `id` matches its filename; use letters, digits, dots, underscores, and hyphens. `name` is the physical provider model name and can contain provider namespaces. Keep endpoint/provider/credentials/timeouts/defaults in this file. Standalone model files reject inline `api_key`; use `api_key_env`. For an unauthenticated local endpoint, omit the key variable or use null. Model stages, policies, output limits, and optional server/decision/capacity settings belong in the profile. See [copyable definitions](model-config-capacity.md).
+
+## Native providers and local inference
+
+| Preset | First profile | Upstream credential |
+|---|---|---|
+| `openai` | `prism-openai-direct` | `OPENAI_API_KEY` |
+| `claude` | `prism-claude-direct` | `ANTHROPIC_API_KEY` |
+| `gemini` | `prism-gemini-direct` | `GEMINI_API_KEY` |
+| `openrouter` | `prism-balanced` | `OPENROUTER_API_KEY` |
+| `local` | `prism-local-direct` | None for the included localhost endpoint |
+
+The local model sample targets Docker Model Runner's `ai/gemma4:E2B` at `http://127.0.0.1:12434/engines/v1`; start that model server or edit `models/local.json` to match your backend. Native samples use documented model IDs and real SDK transports; paid-cloud examples have local fixture coverage, without live paid-provider qualification. [Provider details](../examples/standalone/providers/README.md).
+
+The `local` preset also includes `prism`, which combines that Gemma worker with Spark's `docker.io/ai/nemotron-3.5-lightning:latest` at `http://10.0.4.32:12434/engines/v1`. Both have explicit zero token prices, excluding hardware costs. Edit `models/local-strong.json` for your Spark endpoint. The automatic OpenRouter workflow is named `prism-openrouter` in standalone profiles; its retained multi-alias config still uses the historical `prism` alias.
+
+## Track token cost
+
+Set `input_cost_per_million` and `output_cost_per_million` in model JSON to numeric USD rates or strings such as `"$1/m"` and `"$5/m"`. Then use `prism start --profile NAME --show-cost` for a live full-screen dashboard with spend, savings, input/output tokens, model rates, uptime, and server activity. Ctrl+C restores the terminal and prints a final summary. Redirected output and `--json` produce JSON reports. This sums **provider input and output usage** across all physical stages since startup. Unpriced/unreported calls are visible and leave total cost incomplete. Estimated savings show dollars and percent for comparable completed requests; negative savings are retained. Configure `cost_baseline_model` in a profile to choose another priced comparison model. [Full calculation and authenticated totals endpoint](cost-tracking.md).
+
+For an OpenRouter demonstration, set `OPENROUTER_API_KEY`, start `prism start --profile prism-mock-cost --show-cost --no-auth`, then run `python examples/standalone/cost_demo.py --no-auth` from another terminal in this checkout. This profile always prepares text with free Nemotron Super and synthesizes with free Ultra using **hypothetical** rates. It needs no local model servers. It uses real responses and usage; the dashboard and costs endpoint label the simulated prices. The example uses explicit source boundaries so the final model receives compact notes rather than the original source. [Copyable request and rates](cost-tracking.md#try-openrouter-with-hypothetical-prices).
+
+## Output, health, and authentication
+
+```sh
+prism --help
+prism profiles --json
+prism models --profile prism-balanced --output table
+prism doctor --profile prism-balanced --probe-backends
+prism capacity --profile prism-balanced --json
+```
+
+Terminal output uses tables; redirected command results are JSON. `--json` works before or after the subcommand; `--output table` forces terminal presentation and `NO_COLOR=1` disables colors. Inventory capabilities are declarations. `capacity --profile NAME` evaluates that actual profile graph unless `--model ID` selects a physical model or loaded alias. Doctor and capacity probes make real upstream calls and may be billed.
+
+Doctor without `--probe-backends` deliberately reports unprobed backends and exits 3. Exit codes are 0 for command success, 2 for command/configuration errors, and 3 for doctor not ready. Capacity command success means the evaluation ran; inspect each result.
+
+`PRISM_API_KEY` protects client requests by default. `prism start --profile NAME --no-auth` explicitly disables Prism authentication, while upstream credentials remain required. Anonymous callers share trace/cost access. CLI `capacity` calls providers directly and needs upstream keys rather than a Prism client key. An OpenAI client still requires a nonempty `api_key` argument; use `"unused"` when connecting to an explicitly anonymous server.
+
+## JSON and images
+
+`prism-balanced` calls Nano for ordinary text and Super when `response_format` requests JSON. Nano deliberately has no JSON capability declaration. `json_object` validates parseable JSON; `json_schema` validates the requested shape. JSON instructions alone do not request this routing change.
+
+For image inputs plus JSON, start `prism-vision-reasoning`. It sends pixels to Nano and text observations to Super for the final structured answer. `prism-balanced` cannot handle image+JSON through its text-only JSON final assignment. Vision/text preparation is lossy; source-backed evidence mapping instead validates quote provenance. Neither proves answer correctness.
 
 ## Docker
 
 ```sh
-docker build -t mirrorneuron-prism:0.3.1 .
+docker build -t mirrorneuron-prism:dev .
 docker run --rm -p 127.0.0.1:8080:8080 \
   -e OPENROUTER_API_KEY -e PRISM_API_KEY \
   -v prism-huggingface:/home/prism/.cache/huggingface \
-  mirrorneuron-prism:0.3.1
+  mirrorneuron-prism:dev
 ```
 
-The image includes the free OpenRouter preset, CPU torch, a non-root user, and a readiness health check. The volume caches Laya's checkpoint. To opt out of client auth, append the complete command:
+The image contains the free `prism-balanced` profile, CPU torch, a non-root user, and a health check. The volume caches Laya. `docker compose up --build` requires both environment variables. To show costs or explicitly disable client auth, replace the complete command:
 
 ```sh
 docker run --rm -p 127.0.0.1:8080:8080 -e OPENROUTER_API_KEY \
   -v prism-huggingface:/home/prism/.cache/huggingface \
-  mirrorneuron-prism:0.3.1 serve --config /app/prism.json --host 0.0.0.0 --no-auth
+  mirrorneuron-prism:dev start --profile /app/profiles/prism-balanced.json \
+  --host 0.0.0.0 --no-auth --show-cost
 ```
 
-`docker compose up --build` uses the authenticated preset and requires both environment variables. For a custom deployment, mount your configuration directory read-only at `/config` and pass `serve --config /config/prism.json --host 0.0.0.0`. Its model registry paths resolve relative to that mounted file. Pass the keys required by that registry. The build context excludes local secrets and evaluation artifacts.
+For a custom deployment, mount its directory read-only at `/config`, pass the selected upstream keys, and use `start --profile /config/profiles/NAME.json --host 0.0.0.0`. The directory includes both `models/` and `profiles/`; model paths resolve against the profile. The Docker build excludes local secrets and evaluation artifacts.
 
-## Existing local deployment
+## Legacy combined configuration
 
-Requires Python 3.11 or later. From this checkout:
-
-The repository's `prism.json` already points to the existing `models/muse-gemma-mix.json` registry. Its default `prism` route uses Gemma for direct/worker/synthesis stages; `prism-careful` permits the configured Muse backend. Verify capabilities/context settings and endpoint availability for your deployment. Use `prism init` in a new directory to generate a clean configuration.
-
-```sh
-python -m pip install .
-
-# For this repository, use the existing prism.json and models/ registry.
-# In a new deployment directory, run prism init first.
-# Edit the raw-model JSON: physical names, endpoints, capabilities and limits.
-export PRISM_API_KEY='choose-a-long-random-secret'
-prism validate --config prism.json
-prism doctor --config prism.json --probe-backends
-prism serve --config prism.json
-```
-
-For a deployment outside the checkout, install with `python -m pip install mirrorneuron-prism`. Laya and its ML dependencies install automatically. The first server startup prepares its checkpoint on CPU and may download weights. The server binds to `127.0.0.1:8080` by default and requires bearer authentication. Put TLS at a reverse proxy before exposing it over a network.
-
-Configure physical models in **JSON**, separately from virtual policies. Existing files shaped like `models/muse-gemma-mix.json` still work: `id` defaults to `name`. Set the `models_file` path and profile references accordingly. Relative paths resolve against the config file, not the working directory.
-
-```json
-{
-  "models": [
-    {
-      "id": "small",
-      "name": "your-physical-model",
-      "base_url": "http://127.0.0.1:8000/v1",
-      "api_key_env": "BACKEND_API_KEY",
-      "context_window": 32768,
-      "max_output_tokens": 4096,
-      "concurrency": 2,
-      "capabilities": ["text", "stream", "tools", "json_object", "json_schema"]
-    }
-  ]
-}
-```
-
-`models_file` can also point directly to a directory of GomokuBench/OpenCode provider JSON files. Prism imports their provider options, model names, and inference defaults and automatically exposes each `provider/model-alias`; `profiles` is optional. Native LiteLLM model prefixes and provider options are supported. See [single-source model configuration and live capacity](model-config-capacity.md) and the [local/Spark example](../examples/standalone/litellm/prism.json).
-
-Default-authenticated `/capacity?model=YOUR_ALIAS&refresh=true` runs small live JSON, image, and reasoning evaluations. It reports measured scores, timestamps, and unknown results for unavailable backends, independently of LiteLLM's capability catalog. `prism capacity --config prism.json --model YOUR_REGISTRY_ID` runs the same checks from the CLI.
-
-`api_key` and `api_key_env` are alternatives; an unset configured credential fails visibly. Omit both for a backend without authentication. Capabilities are operator declarations and must match the actual server. There are no hidden inference retries or implicit external fallbacks. Explicit image URL content parts may be handled by the provider/SDK; ordinary URLs in text do not initiate fetches.
-
-The generated `prism.json` serves `prism` for automatic routing and fixed aliases `prism-direct`, `prism-evidence`, `prism-batched`, `prism-verified`, and `prism-retrieve`. Profiles select physical model IDs for `direct`, `worker`, `synthesizer`, and an optional separate `verifier`; all stages may share one small model. Set `strategy` to `auto` or one of the policies listed by `prism policies`. `allowed_policies` limits automatic choices. Each profile caps calls, input/output work, deadline, partitions, and parallel workers. An optional dollar ceiling requires configured input/output prices for every participating backend.
-
-See [the flagship curl cases](flagship-curl-cases.md) for copyable direct, JSON Schema, evidence-map, SSE, tool-call, and error examples. Tests read the exact request payloads from that document and run its curl commands against local HTTP servers.
+Existing combined configurations and registries remain supported by `prism serve --config PATH`. They can expose multiple profiles plus raw-model aliases, unlike standalone `start`. For multi-alias experiments from this checkout, the bundled local and OpenRouter configs are `src/prism/resources/prism.json` and `src/prism/resources/openrouter/prism.json`; provider examples remain under `examples/standalone/providers/`. `--config` and `--profile` are mutually exclusive.
 
 ## Ordinary OpenAI client
 
@@ -149,7 +128,7 @@ client = OpenAI(
     api_key=os.environ["PRISM_API_KEY"],
 )
 response = client.chat.completions.create(
-    model="prism",
+    model="prism-balanced",
     messages=[{"role": "user", "content": "Explain virtual context briefly."}],
     max_completion_tokens=200,
 )
@@ -184,6 +163,8 @@ Prism evaluates direct and permitted multi-stage plans, checks their capabilitie
 Ratings and task fit are heuristics; costs use conservative reservations, not predicted provider bills. Legacy profiles keep their existing routing. Current deployment models are left without invented ratings or prices. See [configuration, scoring, and request controls](model-optimization.md) and the [illustrative JSON configuration](../examples/standalone/optimization/prism.json). This is a Prism Chat Completions extension; it does not implement OpenAI compaction or Responses.
 
 ## Large source input
+
+Start an evidence-capable profile such as `prism` (`prism start --profile prism`) and use its ID for the following request. The direct/balanced quick-start profile does not enable evidence mapping.
 
 Explicit boundaries identify data without guessing which part of a long message is the user's instruction. Instructions before and after the blocks retain their roles and order. Multiple blocks and text content parts are supported.
 
@@ -227,13 +208,15 @@ Traces expose eligible policies, the selected graph, Laya proposals and timing, 
 
 ## Evaluation and release
 
+The paired benchmark examples below use the bundled **multi-alias** `src/prism/resources/prism.json` configuration, started with `prism serve --config src/prism/resources/prism.json`. A standalone `start --profile` process exposes one alias; it does not serve the benchmark defaults together.
+
 Use the packaged six-case benchmark to compare direct execution with evidence extraction/synthesis. Each run saves inputs, answers, traces, latency percentiles, reference quality scores, physical work, and pricing estimates in a new folder:
 
 ```sh
 # With Prism running and PRISM_API_KEY set:
-prism benchmark run --config prism.json --out-dir benchmark-results/run-a
+prism benchmark run --config src/prism/resources/prism.json --out-dir benchmark-results/run-a
 # Repeat after changing a model/profile, using a new folder:
-prism benchmark run --config prism.json --out-dir benchmark-results/run-b
+prism benchmark run --config src/prism/resources/prism.json --out-dir benchmark-results/run-b
 prism benchmark compare benchmark-results/run-a benchmark-results/run-b \
   --out-dir benchmark-results/comparison-a-b
 ```

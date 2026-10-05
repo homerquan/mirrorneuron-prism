@@ -6,7 +6,6 @@ import json
 import os
 import shlex
 import sys
-from importlib.resources import files
 from pathlib import Path
 
 from rich_argparse import RichHelpFormatter
@@ -15,6 +14,7 @@ from . import __version__
 from .cli_ui import Output
 from .config import load_config
 from .errors import OptimizationConfigurationError, PrismError
+from .profiles import initialize, load_profile, model_references, profile_inventory
 
 
 class PrismParser(argparse.ArgumentParser):
@@ -27,20 +27,23 @@ def parser():
     root = PrismParser(
         prog="prism",
         description="Prism · one API, bounded model workflows",
-        epilog="Quick start: prism init --preset openrouter → prism validate → prism serve\nInspect: prism profiles · prism models · prism capacity --model ALIAS\nUse --json for scripts; NO_COLOR=1 disables terminal color.",
+        epilog="Quick start: prism init --preset openrouter → prism start --profile prism-balanced\nInspect: prism profiles · prism models · prism capacity --profile NAME\nUse --json for scripts; NO_COLOR=1 disables terminal color.",
     )
     root.add_argument("--version", action="version", version=f"prism {__version__}")
     commands = root.add_subparsers(dest="command", required=True)
     commands.add_parser("policies", help="list executable routing policies")
-    init = commands.add_parser("init", help="create JSON config and raw model registry")
+    init = commands.add_parser(
+        "init", help="create reusable models/ and profiles/ JSON files"
+    )
     init.add_argument("--out-dir", type=Path, default=Path("."))
     init.add_argument(
         "--preset",
-        choices=("local", "openrouter", "providers"),
-        default="local",
-        help="local server, free OpenRouter mix, or native cloud examples",
+        choices=("local", "openrouter", "openai", "claude", "gemini", "providers"),
+        default="openrouter",
+        help="choose a provider; providers includes native and mixed workflows",
     )
     descriptions = {
+        "start": "start one profile from profiles/NAME.json or an explicit path",
         "serve": "start the OpenAI-compatible server",
         "validate": "check model and profile configuration without inference",
         "doctor": "check credentials and optionally probe backends",
@@ -50,8 +53,16 @@ def parser():
     }
     for name, description in descriptions.items():
         cmd = commands.add_parser(name, help=description)
-        cmd.add_argument("--config", default="prism.json")
-        if name == "serve":
+        selector = cmd.add_mutually_exclusive_group(required=name == "start")
+        selector.add_argument("--profile", help="profile name or JSON path")
+        if name != "start":
+            selector.add_argument("--config", help="legacy combined prism.json config")
+        if name in {"start", "serve"}:
+            cmd.add_argument(
+                "--show-cost",
+                action="store_true",
+                help="show a live full-screen cost/savings dashboard (JSON reports when redirected)",
+            )
             cmd.add_argument("--host")
             cmd.add_argument("--port", type=int)
             cmd.add_argument(
@@ -248,30 +259,30 @@ def main(argv=None):
             )
             return 0
         if args.command == "init":
-            paths = [args.out_dir / name for name in ("prism.json", "models.json")]
-            if any(path.exists() for path in paths):
-                raise PrismError(
-                    "configuration already exists; init never overwrites files"
-                )
-            args.out_dir.mkdir(parents=True, exist_ok=True)
-            resources = files("prism").joinpath("resources")
-            if args.preset != "local":
-                resources = resources.joinpath(args.preset)
-            for path in paths:
-                path.write_text(resources.joinpath(path.name).read_text())
-            config_path = shlex.quote(str(paths[0].resolve()))
+            paths, default_profile = initialize(args.out_dir, args.preset)
+            profile_path = shlex.quote(
+                str((args.out_dir / "profiles" / f"{default_profile}.json").resolve())
+            )
+            config, models = load_profile(
+                args.out_dir / "profiles" / f"{default_profile}.json"
+            )
+            credentials = sorted(
+                {m.api_key_env for m in models.values() if m.api_key_env}
+            )
             emit(
                 {
                     "created": [str(path.resolve()) for path in paths],
                     "next_steps": [
-                        f"prism validate --config {config_path}",
-                        f"prism profiles --config {config_path}",
-                        f"prism serve --config {config_path}",
+                        *[f"export {env}='your-provider-key'" for env in credentials],
+                        f"export {config.server.api_key_env}='your-prism-client-secret'",
+                        f"prism validate --profile {profile_path}",
+                        f"prism start --profile {profile_path}",
                     ],
                 }
             )
             return 0
         if args.command in {
+            "start",
             "serve",
             "validate",
             "doctor",
@@ -279,7 +290,30 @@ def main(argv=None):
             "models",
             "profiles",
         }:
-            config, models = load_config(args.config)
+            if args.profile:
+                config, models = load_profile(args.profile)
+            elif args.config:
+                config, models = load_config(args.config)
+            elif args.command in {"profiles", "models"}:
+                inventory = profile_inventory()
+                if args.command == "profiles":
+                    emit({"object": "profiles", "data": inventory})
+                    return 0
+                models = {}
+                for item in inventory:
+                    _, selected = load_profile(item["file"])
+                    for ref, model in selected.items():
+                        if ref in models and models[ref] != model:
+                            raise ValueError(
+                                "conflicting model definitions across profiles"
+                            )
+                        models[ref] = model
+            elif Path("prism.json").is_file():
+                config, models = load_config("prism.json")
+            else:
+                raise PrismError(
+                    "select a profile with --profile NAME; run prism profiles to list choices"
+                )
             if args.command == "validate":
                 emit(
                     {
@@ -304,6 +338,11 @@ def main(argv=None):
                             {
                                 "id": m.id,
                                 "name": m.name,
+                                "provider": m.provider,
+                                "base_url": m.base_url,
+                                "api_version": m.api_version,
+                                "timeout_seconds": m.timeout_seconds,
+                                "rate_limit_rpm": m.rate_limit_rpm,
                                 "context_window": m.context_window,
                                 "max_output_tokens": m.max_output_tokens,
                                 "capabilities": sorted(m.capabilities),
@@ -311,6 +350,9 @@ def main(argv=None):
                                 "credential_ready": bool(os.environ.get(m.api_key_env))
                                 if m.api_key_env
                                 else True,
+                                "input_cost_per_million": m.input_cost_per_million,
+                                "output_cost_per_million": m.output_cost_per_million,
+                                "cost_rates_are_hypothetical": m.cost_rates_are_hypothetical,
                             }
                             for m in models.values()
                         ],
@@ -355,7 +397,9 @@ def main(argv=None):
                         )
                         profiles = ProfileCapacityEvaluator(engine, config.capacity)
                         results = []
-                        for alias in args.model or list(models):
+                        for alias in args.model or (
+                            list(config.profiles) if args.profile else list(models)
+                        ):
                             evaluator = physical if alias in models else profiles
                             results.extend(await evaluator.query([alias], True))
                         return results
@@ -370,7 +414,25 @@ def main(argv=None):
                 return 0
             if not args.no_auth and not os.environ.get(config.server.api_key_env):
                 raise PrismError(
-                    "set the configured Prism API key environment variable before serving"
+                    f"set {config.server.api_key_env} before starting Prism"
+                )
+            active_ids = {
+                ref
+                for profile in config.profiles.values()
+                for ref in model_references(profile, include_baseline=False)
+            }
+            missing = sorted(
+                {
+                    m.api_key_env
+                    for ref, m in models.items()
+                    if ref in active_ids
+                    if m.api_key_env and not os.environ.get(m.api_key_env)
+                }
+            )
+            if missing:
+                raise PrismError(
+                    "set upstream credential environment variables: "
+                    + ", ".join(missing)
                 )
             # Revalidate endpoint recursion after CLI binding overrides.
             if args.host or args.port:
@@ -379,17 +441,26 @@ def main(argv=None):
 
             from .api import create_app
 
-            output.serving(
-                config.server.host,
-                config.server.port,
-                len(config.profiles),
-                args.no_auth,
+            app = create_app(
+                config,
+                models=models,
+                no_auth=args.no_auth,
+                cost_reporter=output.costs if args.show_cost else None,
             )
-            uvicorn.run(
-                create_app(config, models=models, no_auth=args.no_auth),
+            with output.cost_display(
+                args.show_cost,
+                app.state.costs.snapshot,
                 host=config.server.host,
                 port=config.server.port,
-            )
+                profiles=config.profiles,
+                no_auth=args.no_auth,
+            ) as fullscreen:
+                uvicorn.run(
+                    app,
+                    host=config.server.host,
+                    port=config.server.port,
+                    **({"log_config": None, "log_level": "info"} if fullscreen else {}),
+                )
             return 0
         if args.command == "trace":
             import httpx

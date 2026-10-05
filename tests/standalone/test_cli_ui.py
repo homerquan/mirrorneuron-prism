@@ -22,9 +22,21 @@ def test_json_flags_and_redirected_output(prefix, tmp_path, capsys):
         == 0
     )
     created = json.loads(capsys.readouterr().out)
-    assert len(created["created"]) == 2
-    assert len(created["next_steps"]) == 3
-    assert main(["profiles", "--config", str(tmp_path / "prism.json"), "--json"]) == 0
+    assert all(
+        Path(p).parent.name in {"models", "profiles"} for p in created["created"]
+    )
+    assert len(created["next_steps"]) == 4
+    assert (
+        main(
+            [
+                "profiles",
+                "--profile",
+                str(tmp_path / "profiles/nano-openai.json"),
+                "--json",
+            ]
+        )
+        == 0
+    )
     result = json.loads(capsys.readouterr().out)
     assert result["object"] == "profiles"
     assert any(p["id"] == "nano-openai" for p in result["data"])
@@ -34,7 +46,9 @@ def test_model_inventory_never_prints_keys(tmp_path, monkeypatch, capsys):
     main(["init", "--preset", "providers", "--out-dir", str(tmp_path)])
     capsys.readouterr()
     monkeypatch.setenv("OPENAI_API_KEY", "private-secret")
-    assert main(["models", "--config", str(tmp_path / "prism.json")]) == 0
+    assert (
+        main(["models", "--profile", str(tmp_path / "profiles/prism-openai.json")]) == 0
+    )
     raw = capsys.readouterr().out
     assert "private-secret" not in raw
     data = json.loads(raw)["data"]
@@ -109,7 +123,9 @@ def test_vendor_samples_and_packaged_preset_match():
         config, models = load_config(path)
         assert config.profiles
         for m in models.values():
-            _, provider, _, _ = litellm.get_llm_provider(m.name)
+            _, provider, _, _ = litellm.get_llm_provider(
+                m.name, custom_llm_provider=m.provider
+            )
             assert provider in {"openai", "anthropic", "gemini", "openrouter"}
             assert m.api_key is None and m.api_key_env
     packaged = files("prism").joinpath("resources", "providers")
@@ -297,9 +313,13 @@ def test_doctor_readiness_and_failure_exit_codes(
 
     monkeypatch.setattr("prism.backends.LiteLLMBackend", Backend)
     monkeypatch.delenv("PRISM_API_KEY", raising=False)
-    main(["init", "--out-dir", str(tmp_path)])
+    main(["init", "--preset", "local", "--out-dir", str(tmp_path)])
     capsys.readouterr()
-    command = ["doctor", "--config", str(tmp_path / "prism.json")]
+    command = [
+        "doctor",
+        "--profile",
+        str(tmp_path / "profiles/prism-local-direct.json"),
+    ]
     if no_auth:
         command.append("--no-auth")
     if probed:
@@ -355,8 +375,8 @@ def test_capacity_cli_selects_physical_and_profile_evaluators(
         main(
             [
                 "capacity",
-                "--config",
-                str(tmp_path / "prism.json"),
+                "--profile",
+                str(tmp_path / "profiles/prism-vision-llm.json"),
                 "--model",
                 "nemotron-ultra",
                 "--model",
