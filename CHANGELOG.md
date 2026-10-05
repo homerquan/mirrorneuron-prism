@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-10-05
+
+- Check that the release version is new on PyPI before building; keep package/runtime versions synchronized and serialize release runs. Update CI/release actions to Node.js 24 versions.
 
 - Turn `--show-cost` into a live full-screen terminal dashboard, with per-model usage, uptime, safe server events, and a final summary; retain JSON reports for scripts.
 - Restore `prism` to the free local Gemma/Spark pair; name the OpenRouter automatic workflow `prism-openrouter`. Add `prism-mock-cost` with real OpenRouter Super/Ultra calls and explicitly hypothetical rates for savings demonstrations.

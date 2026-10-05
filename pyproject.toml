@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mirrorneuron-prism"
-version = "0.3.1"
+version = "0.4.0"
 description = "OpenAI-compatible proxy for bounded text, vision, and reasoning model workflows"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -62,7 +62,7 @@ core-metadata-version = "2.4"
 
 [tool.hatch.build.targets.sdist]
 core-metadata-version = "2.4"
-include = ["/src", "/tests", "/examples", "/models", "/profiles", "/Dockerfile", "/.dockerignore", "/compose.yaml", "/README.md", "/CONTRIBUTING.md", "/SECURITY.md", "/CHANGELOG.md", "/LICENSE", "/pyproject.toml", "/docs", "/prism_standalone_proxy_design.md"]
+include = ["/src", "/tests", "/scripts", "/examples", "/models", "/profiles", "/Dockerfile", "/.dockerignore", "/compose.yaml", "/README.md", "/CONTRIBUTING.md", "/SECURITY.md", "/CHANGELOG.md", "/LICENSE", "/pyproject.toml", "/docs", "/prism_standalone_proxy_design.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

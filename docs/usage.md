@@ -4,7 +4,7 @@ Define physical connections in `models/`, model combinations in `profiles/`, the
 
 ## First answer
 
-Install this checkout with Python 3.11+ using `python -m pip install .`. The new profile CLI is not part of the published 0.3.1 interface. In the checkout, the files already exist:
+Install this checkout with Python 3.11+ using `python -m pip install .`. The profile CLI requires version 0.4.0 or later; version 0.3.1 uses the older `serve --config` interface. In the checkout, the files already exist:
 
 ```sh
 export OPENROUTER_API_KEY='your-openrouter-key'

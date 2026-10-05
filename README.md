@@ -10,7 +10,7 @@ Prism can send a small model's notes to a stronger model, have a vision model in
 
 ## Quick start: get your first answer
 
-These profile commands are new in this checkout. Install from source with Python 3.11+; the published 0.3.1 package has the older `serve --config` interface.
+Profile commands require version 0.4.0 or later. Install this checkout from source with Python 3.11+; version 0.3.1 has the older `serve --config` interface.
 
 ```sh
 git clone https://github.com/homerquan/mirrorneuron-prism.git
