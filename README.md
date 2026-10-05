@@ -1,23 +1,92 @@
 # Prism
 
-**One OpenAI-compatible API. Small models prepare; stronger models finish.**
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](pyproject.toml)
+[![CI](https://github.com/homerquan/mirrorneuron-prism/actions/workflows/ci.yml/badge.svg)](https://github.com/homerquan/mirrorneuron-prism/actions/workflows/ci.yml)
+[![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg)](docs/standalone-contract.md)
 
-Prism combines text, reasoning, and vision models in explicit, bounded workflows. Keep your usual OpenAI client, select a virtual model alias, and inspect which physical models did the work. Use a free OpenRouter mix, native cloud APIs, or local OpenAI-compatible servers.
+**Turn local models and cloud LLMs into one AI API.**
+
+![A glass prism splitting white light into a rainbow spectrum](docs/assets/prism.jpeg)
+
+[Why Prism](#why-prism) · [How it works](#how-it-works) · [Quick start](#start-with-free-openrouter-models) · [Documentation](#documentation-and-development) · [Contributing](CONTRIBUTING.md)
+
+Prism lets several models work together behind one OpenAI-compatible endpoint. Connect your application once, then choose a profile that combines the models you need: a small model to prepare context, a vision model to read an image, or a larger model to review and finish the answer. Your application receives one assistant response.
+
+Prism is a component of [MirrorNeuron](https://www.mirrorneuron.io), built to make AI workflows useful on infrastructure you control. It helps solve local AI by composing available models into a service your applications can use. You can also run Prism independently: combine local servers with OpenRouter, OpenAI, Claude, Gemini, and other APIs supported by LiteLLM, using local models, cloud models, or a mix of both.
 
 Distribution: **`mirrorneuron-prism`** · import: **`prism`** · command: **`prism`** · Python **3.11+** · MIT
 
-- **Model combinations:** vision → text/reasoning, draft → review → synthesis, free text preparation → final model, and source-backed evidence workflows.
-- **JSON-aware routing:** explicitly choose a capable final model when JSON or JSON Schema is required.
-- **Measured capacity:** challenge actual JSON, image, and reasoning behavior on physical models and complete profiles.
-- **Bounded execution:** context, calls, concurrency, output, and deadlines are checked before dispatch. Traces show physical usage and unknown costs.
-- **A useful CLI:** Rich tables and help, status indicators, secret-free inventories, and JSON for automation.
-- **Portable deployment:** pip packaging, bundled presets, and a non-root Docker image with CPU Laya routing.
+## Why Prism
+
+AI applications need different capabilities for different jobs. A coding assistant may benefit from drafting and review; a support tool needs structured answers; an image workflow needs vision before reasoning. Prism gives you a place to compose those capabilities while your application keeps the same API.
+
+- **Keep your application simple.** Use your existing OpenAI client and switch workflows by model alias. Define physical models once and reuse them across profiles.
+- **Put each model to useful work.** Let a small or free model prepare context, a vision model interpret pixels, and a selected final model write the answer. Measure cost, latency, and task quality to find a combination that fits your workload.
+- **Bring your own compute and providers.** Start with local inference, cloud APIs, or both. Run Prism as a Python package or Docker service; MirrorNeuron is optional for standalone use.
+- **Make model choices visible.** Test actual JSON, image, and reasoning behavior, route structured output to a capable final model, and inspect stage usage in traces. Set limits on calls, context, output, concurrency, and deadlines.
+
+## What Prism does
+
+Prism is a model-composition proxy that serves the OpenAI Chat Completions API. A profile defines the physical models and workflow behind a public alias. You can choose a direct call, vision → text/reasoning, draft → review → synthesis, plain-text preparation → final answer, or source-backed evidence extraction → synthesis.
+
+For example, `prism-balanced` uses free Nano for ordinary text and Super when JSON is required. `prism-vision-reasoning` uses Nano to inspect an image, then Super to answer from its observations. Your client selects the alias; Prism executes the configured stages and returns the result through the same endpoint.
 
 Prism is alpha software. Observation-based preparation can lose information; source-backed evidence policies validate quote provenance, which does not prove correctness or recall. Qualify models on your own workload.
 
+## How it works
+
+**One call from your application. One or more model calls inside Prism. One response back.** Prism acts as a transparent proxy at the Chat Completions interface: your client selects a public model alias while Prism handles the configured stages. Models can run locally, behind cloud APIs, or across both.
+
+```mermaid
+flowchart TB
+    A["Your application<br/>One Chat Completions request"]
+    subgraph P["Prism · transparent model proxy"]
+        G["Check capabilities, context, and budgets"]
+        L{"Select a feasible policy<br/>Laya classification or a fixed profile"}
+        D["Direct model<br/>1 model call"]
+        W["Small or vision model<br/>Prepare observations"]
+        F["Final model<br/>Synthesize the answer"]
+        B["Draft model"]
+        R["Review model"]
+        S["Final model"]
+        V["Validate final output<br/>Record a metadata trace"]
+        G --> L
+        L -->|Direct| D
+        L -->|Prepare + synthesize: 2 calls| W
+        L -->|Draft + review + synthesize: 3 calls| B
+        W --> F
+        B --> R --> S
+        D --> V
+        F --> V
+        S --> V
+    end
+    A --> G
+    V --> O["One assistant response<br/>Same public API and model alias"]
+```
+
+The diagram shows three representative paths. Source-backed evidence policies can fan out across multiple workers, then synthesize their results. Every path stays within the profile's declared limits, and traces expose which physical models ran. The proxy keeps the client interface consistent; the answer, latency, and cost depend on the selected workflow.
+
+### Request classification with Laya
+
+Prism uses [Laya](https://github.com/NandhaKishorM/laya), a local typed-decision engine, to classify requests for routing and choose among eligible execution policies. The default checkpoint is `convaiinnovations/laya-typed-decisions`, prepared on CPU at server startup. Laya receives a bounded instruction sample and plan metadata; source documents remain outside its decision input.
+
+Prism checks feasible plans before asking Laya to choose. A confident, valid choice selects an existing policy; abstention, low confidence, or decision-inference failure uses the feasible rules fallback. Fixed profiles and requests with a single eligible policy skip decision inference. Laya's confidence is a routing signal, not an answer-quality guarantee. See [execution policies](docs/execution-policies.md) for the full decision flow.
+
+### Choose your cost–quality tradeoff
+
+| Workflow | Cost and latency | Quality consideration |
+|---|---|---|
+| Direct | One model call, without preparation/review overhead | The chosen model handles the original request itself |
+| Small/free preparation → final model | Can reduce premium input when source context is condensed; adds a worker call | Notes can omit facts or qualifications; validate task results |
+| Vision preparation → final model | Adds image interpretation before text/reasoning synthesis | Enables a text-only final model to use images through potentially lossy observations |
+| Draft → review → synthesis | Adds drafting and review calls | Review can catch problems, but improvements need workload evidence |
+
+Use profiles to decide where to spend model work, then benchmark the result against a direct baseline. Cheaper input, stronger final models, and extra review each change the tradeoff; none establishes equivalent quality by itself. Optional [cost/power selection](docs/model-optimization.md) ranks feasible assignments using configured prices and operator ratings. The [live pilot](docs/evaluations/2026-10-04-openrouter/benchmark-results.md) shows measured savings alongside quality and latency regressions.
+
 ## Start with free OpenRouter models
 
-Install from this checkout now; use `python -m pip install mirrorneuron-prism` after publication. Release preparation does not upload anything.
+Try the included free-model profiles with an OpenRouter key. Install from this checkout now; use `python -m pip install mirrorneuron-prism` after publication.
 
 ```sh
 python -m pip install .
@@ -125,3 +194,11 @@ python -m twine check dist/mirrorneuron_prism-0.3.0*
 ```
 
 CI exercises Python 3.11–3.13. Live provider qualification is separate from deterministic tests. The release workflow is manual; the prepared distribution ships bundled presets, benchmark fixtures, typing metadata, and the MIT license.
+
+## Contributing and support
+
+Bug reports, documentation improvements, provider fixtures, and focused pull requests are welcome. Read the [contribution guide](CONTRIBUTING.md) for setup, validation, and review expectations. For bugs or feature requests, [open an issue](https://github.com/homerquan/mirrorneuron-prism/issues) with a minimal reproducible example. See the [security policy](SECURITY.md) for reporting vulnerabilities privately.
+
+## License
+
+Prism is open source under the [MIT License](LICENSE). Copyright © 2026 mirrorneuron-prism.

@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a reproducible problem with Prism.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: "For vulnerabilities, follow SECURITY.md. Remove credentials and private content from all examples."
+  - type: input
+    id: versions
+    attributes:
+      label: Environment
+      description: Prism version, Python version, operating system, and installation method.
+      placeholder: "Prism 0.3.0, Python 3.12, Linux, pip"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include a minimal command, request, and relevant configuration.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: Include error codes and sanitized output. Note whether a provider call was live or mocked.
+    validations:
+      required: true
