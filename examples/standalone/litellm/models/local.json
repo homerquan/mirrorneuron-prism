@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "docker-local": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {"baseURL": "http://127.0.0.1:12434/engines/v1"},
+      "models": {
+        "gemma": {
+          "name": "Local Gemma",
+          "model": "docker.io/ai/gemma4:E2B",
+          "extra_body": {"max_tokens": 1024},
+          "prism": {"context_window": 4096, "concurrency": 1, "enable_thinking": false, "image_token_reserve": 1024}
+        }
+      }
+    }
+  }
+}

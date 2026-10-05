@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "docker-spark": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {"baseURL": "http://10.0.4.32:12434/engines/v1"},
+      "models": {
+        "nemotron": {
+          "name": "Spark Nemotron",
+          "model": "docker.io/ai/nemotron-3.5-lightning:latest",
+          "extra_body": {"max_tokens": 2048},
+          "prism": {"context_window": 8192, "concurrency": 1, "enable_thinking": false}
+        }
+      }
+    }
+  }
+}

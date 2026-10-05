@@ -575,7 +575,7 @@ async def run(
             timeout=timeout,
             trust_env=False,
             follow_redirects=False,
-            headers={"authorization": f"Bearer {api_key}"},
+            headers={"authorization": f"Bearer {api_key}"} if api_key else {},
             transport=transport,
         ) as client:
             with (

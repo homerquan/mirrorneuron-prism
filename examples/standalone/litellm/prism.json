@@ -1,0 +1,5 @@
+{
+  "models_file": "models",
+  "server": {"host": "127.0.0.1", "port": 18080},
+  "capacity": {"ttl_seconds": 60, "probe_timeout_seconds": 30, "output_tokens": 512}
+}

@@ -34,6 +34,8 @@ from .planning import (
     review_messages,
     synthesis_messages,
     verification_packets,
+    vision_messages,
+    vision_synthesis_messages,
 )
 from .reduction import reduce_evidence
 from .runtime import Ledger, Plan, PlanNode, bounded_map
@@ -111,6 +113,17 @@ class ExecutionEngine:
                 "unknown virtual model alias", "model_not_found", 404, "model"
             )
         profile, optimization_controls = effective_profile(profile, body, self.models)
+        if (
+            body.get("response_format", {}).get("type")
+            in {"json_object", "json_schema"}
+            and profile.structured_output_model
+        ):
+            profile = profile.model_copy(
+                update={
+                    "direct": profile.structured_output_model,
+                    "synthesizer": profile.structured_output_model,
+                }
+            )
         limit = body.get(
             "max_completion_tokens",
             body.get("max_tokens", profile.public_max_output_tokens),
@@ -131,8 +144,15 @@ class ExecutionEngine:
                 parameters[spelling] = body[spelling]
         arena = SourceArena(body["messages"])
         direct = self.models[profile.direct]
-        direct_only = bool(DIRECT_ONLY & body.keys()) or any(
-            m["role"] in {"assistant", "tool"} for m in body["messages"]
+        from .contracts import has_images
+
+        direct_only = (
+            (
+                has_images(body["messages"])
+                and "vision_synthesis" not in profile.allowed_policies
+            )
+            or bool(DIRECT_ONLY & body.keys())
+            or any(m["role"] in {"assistant", "tool"} for m in body["messages"])
         )
         try:
             direct_input = check_context(body["messages"], parameters, limit, direct)
@@ -194,6 +214,8 @@ class ExecutionEngine:
                     result = await self._retrieve_read(execution)
                 elif execution["strategy"] == "draft_review":
                     result = await self._draft_review(execution)
+                elif execution["strategy"] in {"vision_synthesis", "text_synthesis"}:
+                    result = await self._vision_synthesis(execution)
                 else:
                     result = await self._evidence_map(execution)
                 message = result["choices"][0]["message"]
@@ -314,6 +336,43 @@ class ExecutionEngine:
                 "invalid_intermediate_output",
                 502,
             )
+
+    async def _vision_synthesis(self, execution):
+        compiled = execution["policy_plans"][execution["strategy"]]
+        profile, ledger = execution["profile"], execution["ledger"]
+        execution["trace"]["plan"] = [asdict(node) for node in compiled["plan"].nodes]
+        reservations = {}
+        for node, (model, inp, out) in zip(
+            compiled["plan"].nodes, compiled["reservations"], strict=True
+        ):
+            reservations[node.id] = await ledger.reserve(node.id, model, inp, out)
+        data = await self.backend.complete(
+            compiled["worker"],
+            vision_messages(execution),
+            {},
+            profile.worker_output_tokens,
+            ledger,
+            reservations["vision"],
+        )
+        observations = self._intermediate_content(execution, data)
+        self._check_artifact_size(execution, observations)
+        messages = vision_synthesis_messages(execution, observations)
+        check_context(
+            messages, execution["parameters"], execution["output"], compiled["final"]
+        )
+        execution["trace"]["coverage"] = {
+            "scope": "visual_observations"
+            if execution["strategy"] == "vision_synthesis"
+            else "text_observations"
+        }
+        return await self.backend.complete(
+            compiled["final"],
+            messages,
+            execution["parameters"],
+            execution["output"],
+            ledger,
+            reservations["synthesis"],
+        )
 
     async def _draft_review(self, execution):
         compiled = execution["policy_plans"]["draft_review"]

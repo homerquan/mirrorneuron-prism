@@ -10,6 +10,8 @@ PolicyName = Literal[
     "verified_map",
     "retrieve_read",
     "draft_review",
+    "vision_synthesis",
+    "text_synthesis",
 ]
 
 POLICIES = {
@@ -19,6 +21,8 @@ POLICIES = {
     "verified_map": "Extract each partition, independently check its facts against quotes, then synthesize",
     "retrieve_read": "Lexically select relevant source partitions for a focused lookup, then answer from original spans",
     "draft_review": "Draft an answer, review it for issues and improvements, then synthesize the final answer",
+    "vision_synthesis": "Inspect image inputs with a vision model, then answer using bounded text observations",
+    "text_synthesis": "Prepare bounded text observations with a worker, then synthesize the final answer",
 }
 
 STOP_WORDS = set(

@@ -1,0 +1,139 @@
+[
+  {
+    "source": "prism-openrouter-fixed-capacity.json",
+    "observation": [
+      {
+        "model": "nemotron-nano-reasoning",
+        "evaluation": "capacity-v1",
+        "checked_at": "2026-10-05T00:24:39.970287+00:00",
+        "expires_at": "2026-10-05T00:25:39.970287+00:00",
+        "cached": false,
+        "capabilities": {
+          "json_object": {
+            "supported": false,
+            "status": "failed",
+            "passed": 0,
+            "total": 1,
+            "elapsed_ms": 5757,
+            "checked_at": "2026-10-05T00:24:29.866308+00:00"
+          },
+          "json_schema": {
+            "supported": null,
+            "status": "unavailable",
+            "passed": 0,
+            "total": 1,
+            "error_code": "upstream_error",
+            "elapsed_ms": 495,
+            "checked_at": "2026-10-05T00:24:30.361623+00:00"
+          },
+          "image": {
+            "supported": true,
+            "status": "passed",
+            "passed": 1,
+            "total": 1,
+            "elapsed_ms": 2866,
+            "checked_at": "2026-10-05T00:24:33.227798+00:00"
+          },
+          "reasoning": {
+            "supported": true,
+            "status": "passed",
+            "passed": 2,
+            "total": 2,
+            "reasoning_metadata_observed": true,
+            "elapsed_ms": 6742,
+            "checked_at": "2026-10-05T00:24:39.970280+00:00"
+          }
+        }
+      },
+      {
+        "model": "nemotron-ultra",
+        "evaluation": "capacity-v1",
+        "checked_at": "2026-10-05T00:24:56.275794+00:00",
+        "expires_at": "2026-10-05T00:25:56.275794+00:00",
+        "cached": false,
+        "capabilities": {
+          "json_object": {
+            "supported": true,
+            "status": "passed",
+            "passed": 1,
+            "total": 1,
+            "elapsed_ms": 3463,
+            "checked_at": "2026-10-05T00:24:43.434720+00:00"
+          },
+          "json_schema": {
+            "supported": true,
+            "status": "passed",
+            "passed": 1,
+            "total": 1,
+            "elapsed_ms": 3823,
+            "checked_at": "2026-10-05T00:24:47.257911+00:00"
+          },
+          "image": {
+            "supported": null,
+            "status": "unavailable",
+            "passed": 0,
+            "total": 1,
+            "error_code": "upstream_error",
+            "elapsed_ms": 108,
+            "checked_at": "2026-10-05T00:24:47.365920+00:00"
+          },
+          "reasoning": {
+            "supported": true,
+            "status": "passed",
+            "passed": 2,
+            "total": 2,
+            "reasoning_metadata_observed": true,
+            "elapsed_ms": 8910,
+            "checked_at": "2026-10-05T00:24:56.275787+00:00"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "source": "prism-openrouter-super-capacity.json",
+    "observation": {
+      "model": "nemotron-super-reasoning",
+      "evaluation": "capacity-v2",
+      "checked_at": "2026-10-05T00:27:03.868652+00:00",
+      "expires_at": "2026-10-05T00:32:03.868652+00:00",
+      "cached": false,
+      "capabilities": {
+        "json_object": {
+          "supported": true,
+          "status": "passed",
+          "passed": 1,
+          "total": 1,
+          "elapsed_ms": 2138,
+          "checked_at": "2026-10-05T00:27:01.070381+00:00"
+        },
+        "json_schema": {
+          "supported": true,
+          "status": "passed",
+          "passed": 1,
+          "total": 1,
+          "elapsed_ms": 1031,
+          "checked_at": "2026-10-05T00:27:02.101582+00:00"
+        },
+        "image": {
+          "supported": null,
+          "status": "unavailable",
+          "passed": 0,
+          "total": 1,
+          "error_code": "upstream_error",
+          "elapsed_ms": 83,
+          "checked_at": "2026-10-05T00:27:02.184601+00:00"
+        },
+        "reasoning": {
+          "supported": true,
+          "status": "passed",
+          "passed": 2,
+          "total": 2,
+          "reasoning_metadata_observed": true,
+          "elapsed_ms": 1684,
+          "checked_at": "2026-10-05T00:27:03.868639+00:00"
+        }
+      }
+    }
+  }
+]

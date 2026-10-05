@@ -1,0 +1,71 @@
+{
+  "models": [
+    {
+      "id": "nemotron-ultra",
+      "name": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "context_window": 262144,
+      "max_output_tokens": 16384,
+      "timeout_seconds": 300,
+      "concurrency": 1,
+      "capabilities": [
+        "text",
+        "stream",
+        "tools",
+        "seed",
+        "reasoning_effort",
+        "json_object",
+        "json_schema"
+      ],
+      "parameters": {
+        "max_tokens": 16384
+      },
+      "input_cost_per_million": 0,
+      "output_cost_per_million": 0
+    },
+    {
+      "id": "nemotron-nano-reasoning",
+      "name": "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "context_window": 256000,
+      "max_output_tokens": 16384,
+      "timeout_seconds": 300,
+      "concurrency": 1,
+      "capabilities": [
+        "text",
+        "stream",
+        "tools",
+        "seed",
+        "image"
+      ],
+      "parameters": {
+        "max_tokens": 16384
+      },
+      "input_cost_per_million": 0,
+      "output_cost_per_million": 0
+    },
+    {
+      "id": "nemotron-super-reasoning",
+      "name": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "context_window": 262144,
+      "max_output_tokens": 16384,
+      "timeout_seconds": 300,
+      "concurrency": 1,
+      "parameters": {
+        "max_tokens": 16384
+      },
+      "capabilities": [
+        "text",
+        "stream",
+        "tools",
+        "seed",
+        "reasoning_effort",
+        "json_object",
+        "json_schema"
+      ],
+      "input_cost_per_million": 0,
+      "output_cost_per_million": 0
+    }
+  ]
+}

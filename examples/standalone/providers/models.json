@@ -1,0 +1,146 @@
+{
+  "models": [
+    {
+      "id": "openai-small",
+      "name": "openai/gpt-6-luna",
+      "api_key_env": "OPENAI_API_KEY",
+      "context_window": 131072,
+      "max_output_tokens": 16384,
+      "timeout_seconds": 300,
+      "concurrency": 2,
+      "capabilities": [
+        "text",
+        "stream",
+        "image",
+        "tools",
+        "json_object",
+        "json_schema",
+        "reasoning_effort"
+      ]
+    },
+    {
+      "id": "openai-strong",
+      "name": "openai/gpt-6-astra",
+      "api_key_env": "OPENAI_API_KEY",
+      "context_window": 131072,
+      "max_output_tokens": 16384,
+      "timeout_seconds": 300,
+      "concurrency": 2,
+      "capabilities": [
+        "text",
+        "stream",
+        "image",
+        "tools",
+        "json_object",
+        "json_schema",
+        "reasoning_effort"
+      ]
+    },
+    {
+      "id": "claude-small",
+      "name": "anthropic/claude-haiku-4-5",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "context_window": 131072,
+      "max_output_tokens": 16384,
+      "timeout_seconds": 300,
+      "concurrency": 2,
+      "capabilities": [
+        "text",
+        "stream",
+        "image",
+        "tools",
+        "json_object",
+        "json_schema"
+      ]
+    },
+    {
+      "id": "claude-strong",
+      "name": "anthropic/claude-opus-5-5",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "context_window": 131072,
+      "max_output_tokens": 16384,
+      "timeout_seconds": 300,
+      "concurrency": 2,
+      "capabilities": [
+        "text",
+        "stream",
+        "image",
+        "tools",
+        "json_object",
+        "json_schema"
+      ]
+    },
+    {
+      "id": "gemini-small",
+      "name": "gemini/gemini-3.5-flash-lite",
+      "api_key_env": "GEMINI_API_KEY",
+      "context_window": 131072,
+      "max_output_tokens": 16384,
+      "timeout_seconds": 300,
+      "concurrency": 2,
+      "capabilities": [
+        "text",
+        "stream",
+        "image",
+        "tools",
+        "json_object",
+        "json_schema"
+      ]
+    },
+    {
+      "id": "gemini-strong",
+      "name": "gemini/gemini-3.8-flash",
+      "api_key_env": "GEMINI_API_KEY",
+      "context_window": 131072,
+      "max_output_tokens": 16384,
+      "timeout_seconds": 300,
+      "concurrency": 2,
+      "capabilities": [
+        "text",
+        "stream",
+        "image",
+        "tools",
+        "json_object",
+        "json_schema"
+      ]
+    },
+    {
+      "id": "gemini-pro",
+      "name": "gemini/gemini-3.1-pro-preview",
+      "api_key_env": "GEMINI_API_KEY",
+      "context_window": 131072,
+      "max_output_tokens": 16384,
+      "timeout_seconds": 300,
+      "concurrency": 2,
+      "capabilities": [
+        "text",
+        "stream",
+        "image",
+        "tools",
+        "json_object",
+        "json_schema"
+      ]
+    },
+    {
+      "id": "nemotron-nano-reasoning",
+      "name": "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "context_window": 256000,
+      "max_output_tokens": 16384,
+      "timeout_seconds": 300,
+      "concurrency": 1,
+      "capabilities": [
+        "text",
+        "stream",
+        "tools",
+        "seed",
+        "image"
+      ],
+      "parameters": {
+        "max_tokens": 16384
+      },
+      "input_cost_per_million": 0,
+      "output_cost_per_million": 0
+    }
+  ]
+}

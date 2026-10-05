@@ -1,0 +1,641 @@
+{
+  "started_at": "2026-10-05T00:39:23.093582+00:00",
+  "prism_version": "0.3.0",
+  "repeats": 2,
+  "actual_pricing": "all configured model input/output token prices are zero",
+  "hypothetical_prices": {
+    "astra_standard": {
+      "input": 10.0,
+      "output": 50.0,
+      "source": "https://developers.openai.com/api/docs/models/gpt-6-astra"
+    },
+    "claude_opus_5_5": {
+      "input": 4.0,
+      "output": 20.0,
+      "source": "https://platform.claude.com/docs/en/models/opus-5-5/whats-new-opus-5-5"
+    }
+  },
+  "source_sha256": {
+    "__init__.py": "5730ea13d7993764d203be334a4dde90d1eb85cc9c408562a1afb5b7ead2fb83",
+    "__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+    "api.py": "7deead5b5b1550c1948dd6f9fb5bc0b2fcbda0a911315afb03032eb7df570f46",
+    "artifacts.py": "564c1624bb5ecc6b8eb0547650ca61fefc10e3cb475901f838c4a9d07de99e7e",
+    "backends.py": "4a7376fcfd543ebf9564b86dd4626c6a86676731f20237f90aaa31e2a9727e2e",
+    "benchmark.py": "04f93dde27239e0b0da2f15432409225cef174a030406ceb1c5e8530cb200be0",
+    "benchmark_stages.py": "0b0106fb8c667e38b82f1ce12c16fe7a9c9682a61d2c5a2b237ac8f6135024fe",
+    "capacity.py": "9135b741e1a22b9fc342870905bde09d66ca52218ecdac227d130a33284451d0",
+    "cli.py": "00c8fc39a5245e622b7d206323a5497e96756401262649a2ecd9f06b916d27d3",
+    "compaction.py": "6dd59e48bbff6c1bb2a090eb121e128c6735e86bdd20bfd5d13bd18e88827c80",
+    "config.py": "5c78afb02de672b2986bb56fa32fbeabc16ff23163bc211a3f1b74203e223ff1",
+    "context.py": "36c66f33a396985b95246e9a1bcfb9ff8811d34e946008eb600ad13e24e5bea4",
+    "contracts.py": "829e1a87fa2c923be486975a0f95cad7a163605e55aa847ca98e63ded99ae0be",
+    "decision.py": "248e5220b6f7280fc623607116c72994a5f204fa7f7fdef49714734d7982ecfc",
+    "decision_worker.py": "c3745050f1734206a4f305a1d4b09db16460692f8bca0c42a90c08c618e62cd1",
+    "engine.py": "3257f01a0bc1d94e0d601d16c6b12fc44ed5472bfac5773212920d2c75d48020",
+    "errors.py": "4f5339f79fe790d99220efaac9fd9b901c6032af59ff8309060847bd80a3ff70",
+    "evaluation.py": "e9aef8e0610cdbaffff9cf89f5118aed5be275205f5e1bab75974f9a6f746804",
+    "long_context_cases.py": "166dc34f2b8463305859b3ac54514be760fcb46197383add27fb88af7e50eb6d",
+    "native_tokens.py": "6811638510e6897c24ddd5aa885046bd08c84d40a809b658d4bec04c0c2a1a8c",
+    "optimization.py": "05e709c203ac1f63f777a5d1e76d1cce4e7873aa9683954abd30b63facd7f587",
+    "passages.py": "a20a5a92b84c9ec9b81b7aef463bb646d65756ff1c07343808245ba2c97b443c",
+    "planning.py": "8f234c191613d3ac8a6490a3f5b695f3ed127f4fbeb52c723101b303911f8a81",
+    "policies.py": "bb5d5b28581c9a36415fca49482cdaa156e3c0d477839616d4be3173e60c38b1",
+    "reduction.py": "8c863a0758b0560a2bcac5d03d5ab4f47c03caa93793f5f994bc024f0b5aebae",
+    "registry.py": "2eeb4bb82c0349632be516881e829ab91590fada7fccb7ece2191ff75cbb8abb",
+    "runtime.py": "c82d452862d9634a5b61620f42d5d4d2254267079eadc8f830492791f1286fb2",
+    "telemetry.py": "5e9dd5d9e8828154cfe77898490da905a841232b6b22688cf7bb87baef14ae26",
+    "wire.py": "dde5321d8bc3f964d1db4159293e6df29e75848411ef255ebb9cb8e513654342"
+  },
+  "config": {
+    "schema_version": 1,
+    "models_file": "models/openrouter-nemotron-mix.json",
+    "server": {
+      "host": "127.0.0.1",
+      "port": 8080,
+      "api_key_env": "PRISM_API_KEY",
+      "max_payload_bytes": 16000000,
+      "max_virtual_input_bytes": 12000000,
+      "max_concurrent_requests": 16,
+      "trace_capacity": 256,
+      "trace_ttl_seconds": 3600.0,
+      "public_url": null
+    },
+    "profiles": {
+      "prism": {
+        "direct": "nemotron-ultra",
+        "worker": "nemotron-super-reasoning",
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": "nemotron-ultra",
+        "structured_output_model": null,
+        "verifier": null,
+        "strategy": "auto",
+        "allowed_policies": [
+          "direct",
+          "evidence_map",
+          "batched_map",
+          "verified_map",
+          "retrieve_read"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 2048,
+        "worker_output_tokens": 4096,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 4096,
+        "optimization": null,
+        "limits": {
+          "max_calls": 64,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 300.0,
+          "max_partitions": 60,
+          "max_parallel": 1
+        }
+      },
+      "prism-direct": {
+        "direct": "nemotron-ultra",
+        "worker": null,
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": null,
+        "structured_output_model": null,
+        "verifier": null,
+        "strategy": "direct",
+        "allowed_policies": [
+          "direct",
+          "evidence_map",
+          "batched_map",
+          "verified_map",
+          "retrieve_read"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 2048,
+        "worker_output_tokens": 1024,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 4096,
+        "optimization": null,
+        "limits": {
+          "max_calls": 64,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 300.0,
+          "max_partitions": 60,
+          "max_parallel": 2
+        }
+      },
+      "prism-evidence": {
+        "direct": "nemotron-ultra",
+        "worker": "nemotron-super-reasoning",
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": "nemotron-ultra",
+        "structured_output_model": null,
+        "verifier": null,
+        "strategy": "evidence_map",
+        "allowed_policies": [
+          "direct",
+          "evidence_map",
+          "batched_map",
+          "verified_map",
+          "retrieve_read"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 2048,
+        "worker_output_tokens": 4096,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 4096,
+        "optimization": null,
+        "limits": {
+          "max_calls": 64,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 300.0,
+          "max_partitions": 60,
+          "max_parallel": 1
+        }
+      },
+      "prism-vision-llm": {
+        "direct": "nemotron-ultra",
+        "worker": "nemotron-nano-reasoning",
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": "nemotron-ultra",
+        "structured_output_model": null,
+        "verifier": null,
+        "strategy": "auto",
+        "allowed_policies": [
+          "direct",
+          "vision_synthesis"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 4096,
+        "worker_output_tokens": 4096,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 8192,
+        "optimization": null,
+        "limits": {
+          "max_calls": 2,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 300.0,
+          "max_partitions": 60,
+          "max_parallel": 1
+        }
+      },
+      "prism-omni-llm": {
+        "direct": "nemotron-ultra",
+        "worker": "nemotron-nano-reasoning",
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": "nemotron-ultra",
+        "structured_output_model": null,
+        "verifier": null,
+        "strategy": "auto",
+        "allowed_policies": [
+          "direct",
+          "vision_synthesis"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 4096,
+        "worker_output_tokens": 4096,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 8192,
+        "optimization": null,
+        "limits": {
+          "max_calls": 2,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 300.0,
+          "max_partitions": 60,
+          "max_parallel": 1
+        }
+      },
+      "prism-vision-reasoning": {
+        "direct": "nemotron-super-reasoning",
+        "worker": "nemotron-nano-reasoning",
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": "nemotron-super-reasoning",
+        "structured_output_model": null,
+        "verifier": null,
+        "strategy": "auto",
+        "allowed_policies": [
+          "direct",
+          "vision_synthesis"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 4096,
+        "worker_output_tokens": 4096,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 8192,
+        "optimization": null,
+        "limits": {
+          "max_calls": 2,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 300.0,
+          "max_partitions": 60,
+          "max_parallel": 1
+        }
+      },
+      "prism-reasoning-image": {
+        "direct": "nemotron-nano-reasoning",
+        "worker": "nemotron-super-reasoning",
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": "nemotron-nano-reasoning",
+        "structured_output_model": "nemotron-super-reasoning",
+        "verifier": "nemotron-super-reasoning",
+        "strategy": "draft_review",
+        "allowed_policies": [
+          "direct",
+          "draft_review"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 4096,
+        "worker_output_tokens": 4096,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 8192,
+        "optimization": null,
+        "limits": {
+          "max_calls": 3,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 300.0,
+          "max_partitions": 60,
+          "max_parallel": 1
+        }
+      },
+      "prism-reasoning-omni": {
+        "direct": "nemotron-nano-reasoning",
+        "worker": "nemotron-super-reasoning",
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": "nemotron-nano-reasoning",
+        "structured_output_model": "nemotron-super-reasoning",
+        "verifier": "nemotron-super-reasoning",
+        "strategy": "draft_review",
+        "allowed_policies": [
+          "direct",
+          "draft_review"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 4096,
+        "worker_output_tokens": 4096,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 8192,
+        "optimization": null,
+        "limits": {
+          "max_calls": 3,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 300.0,
+          "max_partitions": 60,
+          "max_parallel": 1
+        }
+      },
+      "prism-llm-omni": {
+        "direct": "nemotron-nano-reasoning",
+        "worker": "nemotron-ultra",
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": "nemotron-nano-reasoning",
+        "structured_output_model": "nemotron-super-reasoning",
+        "verifier": "nemotron-super-reasoning",
+        "strategy": "draft_review",
+        "allowed_policies": [
+          "direct",
+          "draft_review"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 4096,
+        "worker_output_tokens": 4096,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 8192,
+        "optimization": null,
+        "limits": {
+          "max_calls": 3,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 300.0,
+          "max_partitions": 60,
+          "max_parallel": 1
+        }
+      },
+      "prism-balanced": {
+        "direct": "nemotron-nano-reasoning",
+        "worker": null,
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": null,
+        "structured_output_model": "nemotron-super-reasoning",
+        "verifier": null,
+        "strategy": "direct",
+        "allowed_policies": [
+          "direct"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 4096,
+        "worker_output_tokens": 1024,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 4096,
+        "optimization": null,
+        "limits": {
+          "max_calls": 64,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 300.0,
+          "max_partitions": 60,
+          "max_parallel": 2
+        }
+      },
+      "prism-nano-synthesis": {
+        "direct": "nemotron-super-reasoning",
+        "worker": "nemotron-nano-reasoning",
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": "nemotron-super-reasoning",
+        "structured_output_model": "nemotron-super-reasoning",
+        "verifier": null,
+        "strategy": "text_synthesis",
+        "allowed_policies": [
+          "direct",
+          "text_synthesis"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 4096,
+        "worker_output_tokens": 4096,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 12000,
+        "optimization": null,
+        "limits": {
+          "max_calls": 2,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 300.0,
+          "max_partitions": 60,
+          "max_parallel": 1
+        }
+      },
+      "nemotron-ultra": {
+        "direct": "nemotron-ultra",
+        "worker": null,
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": null,
+        "structured_output_model": null,
+        "verifier": null,
+        "strategy": "direct",
+        "allowed_policies": [
+          "direct"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 16384,
+        "worker_output_tokens": 1024,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 4096,
+        "optimization": null,
+        "limits": {
+          "max_calls": 64,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 120.0,
+          "max_partitions": 60,
+          "max_parallel": 2
+        }
+      },
+      "nemotron-nano-reasoning": {
+        "direct": "nemotron-nano-reasoning",
+        "worker": null,
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": null,
+        "structured_output_model": null,
+        "verifier": null,
+        "strategy": "direct",
+        "allowed_policies": [
+          "direct"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 16384,
+        "worker_output_tokens": 1024,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 4096,
+        "optimization": null,
+        "limits": {
+          "max_calls": 64,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 120.0,
+          "max_partitions": 60,
+          "max_parallel": 2
+        }
+      },
+      "nemotron-super-reasoning": {
+        "direct": "nemotron-super-reasoning",
+        "worker": null,
+        "worker_fallback": null,
+        "evidence_compaction": null,
+        "evidence_reduction": null,
+        "synthesizer": null,
+        "structured_output_model": null,
+        "verifier": null,
+        "strategy": "direct",
+        "allowed_policies": [
+          "direct"
+        ],
+        "coverage": "exhaustive",
+        "batch_max_partitions": 4,
+        "retrieval_top_k": 4,
+        "public_max_output_tokens": 16384,
+        "worker_output_tokens": 1024,
+        "partition_bytes": 6000,
+        "intermediate_max_bytes": 4096,
+        "optimization": null,
+        "limits": {
+          "max_calls": 64,
+          "max_input_tokens": 2000000,
+          "max_output_tokens": 65536,
+          "max_cost_usd": null,
+          "deadline_seconds": 120.0,
+          "max_partitions": 60,
+          "max_parallel": 2
+        }
+      }
+    },
+    "decision": {
+      "mode": "route",
+      "model": "convaiinnovations/laya-typed-decisions",
+      "revision": "1a793eb568e6718f15941d08f85432581df534e3",
+      "expected_sha256": null,
+      "max_len": 1024,
+      "max_state_bytes": 1200,
+      "min_option_confidence": 0.7
+    },
+    "capacity": {
+      "ttl_seconds": 300.0,
+      "probe_timeout_seconds": 120.0,
+      "output_tokens": 4096,
+      "max_parallel": 1
+    }
+  },
+  "models": {
+    "nemotron-ultra": {
+      "id": "nemotron-ultra",
+      "name": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "base_url": null,
+      "provider": null,
+      "api_version": null,
+      "parameters": {
+        "max_tokens": 16384
+      },
+      "provider_options": {},
+      "timeout_seconds": 300.0,
+      "rate_limit_rpm": null,
+      "image_token_reserve": 4096,
+      "context_window": 262144,
+      "max_output_tokens": 16384,
+      "safety_margin": 256,
+      "concurrency": 1,
+      "enable_thinking": null,
+      "tokens_per_byte_bound": 1.0,
+      "chat_overhead_tokens": 64,
+      "capabilities": [
+        "tools",
+        "json_object",
+        "seed",
+        "text",
+        "reasoning_effort",
+        "json_schema",
+        "stream"
+      ],
+      "input_cost_per_million": 0.0,
+      "output_cost_per_million": 0.0,
+      "power_rating": null
+    },
+    "nemotron-nano-reasoning": {
+      "id": "nemotron-nano-reasoning",
+      "name": "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "base_url": null,
+      "provider": null,
+      "api_version": null,
+      "parameters": {
+        "max_tokens": 16384
+      },
+      "provider_options": {},
+      "timeout_seconds": 300.0,
+      "rate_limit_rpm": null,
+      "image_token_reserve": 4096,
+      "context_window": 256000,
+      "max_output_tokens": 16384,
+      "safety_margin": 256,
+      "concurrency": 1,
+      "enable_thinking": null,
+      "tokens_per_byte_bound": 1.0,
+      "chat_overhead_tokens": 64,
+      "capabilities": [
+        "tools",
+        "seed",
+        "image",
+        "text",
+        "stream"
+      ],
+      "input_cost_per_million": 0.0,
+      "output_cost_per_million": 0.0,
+      "power_rating": null
+    },
+    "nemotron-super-reasoning": {
+      "id": "nemotron-super-reasoning",
+      "name": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+      "base_url": null,
+      "provider": null,
+      "api_version": null,
+      "parameters": {
+        "max_tokens": 16384
+      },
+      "provider_options": {},
+      "timeout_seconds": 300.0,
+      "rate_limit_rpm": null,
+      "image_token_reserve": 4096,
+      "context_window": 262144,
+      "max_output_tokens": 16384,
+      "safety_margin": 256,
+      "concurrency": 1,
+      "enable_thinking": null,
+      "tokens_per_byte_bound": 1.0,
+      "chat_overhead_tokens": 64,
+      "capabilities": [
+        "tools",
+        "json_object",
+        "seed",
+        "text",
+        "reasoning_effort",
+        "json_schema",
+        "stream"
+      ],
+      "input_cost_per_million": 0.0,
+      "output_cost_per_million": 0.0,
+      "power_rating": null
+    }
+  },
+  "settings": {
+    "temperature": 0,
+    "output_tokens": 4096,
+    "warmups": 0,
+    "request_timeout_seconds": 300
+  },
+  "finished_at": "2026-10-05T00:44:20.771696+00:00",
+  "status": "complete"
+}

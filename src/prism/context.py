@@ -55,7 +55,11 @@ class SourceArena:
             parts = (
                 [content]
                 if isinstance(content, str)
-                else ([p["text"] for p in content] if isinstance(content, list) else [])
+                else (
+                    [p.get("text", "") for p in content]
+                    if isinstance(content, list)
+                    else []
+                )
             )
             for part_index, text in enumerate(parts):
                 source = Source(
@@ -89,6 +93,8 @@ class SourceArena:
                                 p["text"],
                             ),
                         }
+                        if p.get("type") == "text"
+                        else dict(p)
                         for p in content
                     ]
             self.instructions.append(replacement)

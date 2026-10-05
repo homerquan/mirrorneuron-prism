@@ -2,6 +2,7 @@
 
 import json
 import math
+from urllib.parse import urlsplit
 
 from .errors import PrismError
 from .policies import POLICIES
@@ -113,17 +114,26 @@ def byte_tokens(value):
 
 
 def prompt_bound(messages, parameters, model):
-    if model.enable_thinking is not None:
-        parameters = {
-            **parameters,
-            "chat_template_kwargs": {"enable_thinking": model.enable_thinking},
-        }
+    parameters = model.call_parameters(
+        parameters,
+        parameters.get(
+            "max_completion_tokens",
+            parameters.get("max_tokens", model.max_output_tokens),
+        ),
+    )
     return (
         math.ceil(
             byte_tokens({"messages": messages, **parameters})
             * model.tokens_per_byte_bound
         )
         + (len(messages) + 1) * model.chat_overhead_tokens
+        + sum(
+            model.image_token_reserve
+            for message in messages
+            if isinstance(message.get("content"), list)
+            for part in message["content"]
+            if part.get("type") == "image_url"
+        )
     )
 
 
@@ -193,15 +203,11 @@ def validate_request(body):
                 "request exceeds 1024 content parts", "resource_limit", 413
             )
         if isinstance(content, list):
-            if not content or any(
-                not isinstance(part, dict)
-                or set(part) != {"type", "text"}
-                or part["type"] != "text"
-                or not isinstance(part["text"], str)
-                for part in content
+            if not content or not all(
+                valid_part(part, message["role"]) for part in content
             ):
                 raise PrismError(
-                    "only text content parts are supported", "unsupported_feature"
+                    "invalid or unsupported content part", "unsupported_feature"
                 )
         elif not isinstance(content, str) and not (
             message["role"] == "assistant"
@@ -425,6 +431,8 @@ def _reject_remote_refs(value):
 
 def required_capabilities(body):
     result = {"text"}
+    if has_images(body["messages"]):
+        result.add("image")
     if body.get("stream"):
         result.add("stream")
     if "tools" in body or any(
@@ -438,6 +446,62 @@ def required_capabilities(body):
         if key in body:
             result.add(key)
     return result
+
+
+def has_images(messages):
+    return any(
+        isinstance(m.get("content"), list)
+        and any(p.get("type") == "image_url" for p in m["content"])
+        for m in messages
+    )
+
+
+def valid_part(part, role):
+    if not isinstance(part, dict):
+        return False
+    if part.get("type") == "text":
+        return set(part) == {"type", "text"} and isinstance(part["text"], str)
+    if (
+        part.get("type") != "image_url"
+        or role != "user"
+        or set(part) != {"type", "image_url"}
+    ):
+        return False
+    image = part["image_url"]
+    if (
+        not isinstance(image, dict)
+        or set(image) - {"url", "detail"}
+        or image.get("detail", "auto") not in {"auto", "low", "high"}
+    ):
+        return False
+    url = image.get("url")
+    if not isinstance(url, str) or not url:
+        return False
+    if url.startswith("data:image/"):
+        import base64
+
+        header, sep, data = url.partition(",")
+        if not sep or header not in {
+            "data:image/png;base64",
+            "data:image/jpeg;base64",
+            "data:image/webp;base64",
+            "data:image/gif;base64",
+        }:
+            return False
+        try:
+            return bool(base64.b64decode(data, validate=True))
+        except ValueError:
+            return False
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return False
+    return (
+        parsed.scheme in {"http", "https"}
+        and bool(parsed.hostname)
+        and not parsed.username
+        and not parsed.password
+    )
 
 
 def validate_output(message, fmt):

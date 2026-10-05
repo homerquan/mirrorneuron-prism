@@ -1,0 +1,561 @@
+[
+  {
+    "model": "prism-vision-llm",
+    "passed": false,
+    "status": 502,
+    "expected": [
+      "yellow",
+      "white",
+      "purple",
+      "orange"
+    ],
+    "response": {
+      "error": {
+        "message": "backend rejected or failed the request (HTTP 502)",
+        "type": "server_error",
+        "code": "upstream_error",
+        "param": null
+      }
+    },
+    "trace": {
+      "request_id": "prism-6430262886e94b189f5374e6fbdb5be5",
+      "model": "prism-vision-llm",
+      "strategy": "vision_synthesis",
+      "policy_revision": "policies-v3",
+      "accounting": "prism-utf8-v1",
+      "created": 1791161153,
+      "sources": [
+        {
+          "source_id": "msg-0-part-0",
+          "sha256": "309e802d10151ef63ce847eb6a872263911ffc01e3b2e189ad1ba1d33e79cc40",
+          "bytes": 238,
+          "role": "user",
+          "trust_scope": "caller_content"
+        },
+        {
+          "source_id": "msg-0-part-1",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "role": "user",
+          "trust_scope": "caller_content"
+        }
+      ],
+      "coverage": {},
+      "stop_reason": "upstream_error",
+      "rules_strategy": "vision_synthesis",
+      "eligible_policies": [
+        "vision_synthesis"
+      ],
+      "ineligible_policies": {
+        "direct": "unsupported_feature"
+      },
+      "policy_call_bounds": {
+        "vision_synthesis": 2
+      },
+      "decision": {
+        "mode": "route",
+        "disposition": "rules_only",
+        "reason": "single_eligible_policy",
+        "proposal": "vision_synthesis"
+      },
+      "plan": [
+        {
+          "id": "vision",
+          "operator": "inspect_images",
+          "dependencies": []
+        },
+        {
+          "id": "synthesis",
+          "operator": "synthesize",
+          "dependencies": [
+            "vision"
+          ]
+        }
+      ],
+      "elapsed_ms": 298.5575000056997,
+      "execution_usage": {
+        "consumed_or_conservatively_charged": {
+          "calls": 1,
+          "input_tokens": 5630,
+          "output_tokens": 4096,
+          "cost_usd": 0.0
+        },
+        "calls": [
+          {
+            "node_id": "vision",
+            "model_id": "nemotron-nano-reasoning",
+            "status": "failed",
+            "provider_usage": null,
+            "usage_status": "unknown",
+            "reserved_input_tokens": 5630,
+            "reserved_output_tokens": 4096,
+            "cost_upper_estimate_usd": 0.0,
+            "elapsed_ms": 298.3281249762513,
+            "started_ms": 0.21900003775954247,
+            "finished_ms": 298.54737501591444,
+            "cancellation_requested": false,
+            "remote_cancellation_confirmed": null,
+            "error_code": "upstream_error",
+            "upstream_status": 502
+          }
+        ],
+        "outstanding_nodes": [],
+        "cost_status": "upper_estimate"
+      }
+    }
+  },
+  {
+    "model": "prism-vision-reasoning",
+    "passed": true,
+    "status": 200,
+    "expected": [
+      "black",
+      "green",
+      "white",
+      "yellow"
+    ],
+    "response": {
+      "id": "chatcmpl-prism-ba23ea1b177f426ba467a29bacfc56b1",
+      "object": "chat.completion",
+      "created": 1791161153,
+      "model": "prism-vision-reasoning",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "content": "black, green, white, yellow",
+            "role": "assistant"
+          },
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 956,
+        "completion_tokens": 27,
+        "total_tokens": 983
+      }
+    },
+    "trace": {
+      "request_id": "prism-ba23ea1b177f426ba467a29bacfc56b1",
+      "model": "prism-vision-reasoning",
+      "strategy": "vision_synthesis",
+      "policy_revision": "policies-v3",
+      "accounting": "prism-utf8-v1",
+      "created": 1791161153,
+      "sources": [
+        {
+          "source_id": "msg-0-part-0",
+          "sha256": "309e802d10151ef63ce847eb6a872263911ffc01e3b2e189ad1ba1d33e79cc40",
+          "bytes": 238,
+          "role": "user",
+          "trust_scope": "caller_content"
+        },
+        {
+          "source_id": "msg-0-part-1",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "role": "user",
+          "trust_scope": "caller_content"
+        }
+      ],
+      "coverage": {
+        "scope": "visual_observations"
+      },
+      "stop_reason": "complete",
+      "rules_strategy": "vision_synthesis",
+      "eligible_policies": [
+        "vision_synthesis"
+      ],
+      "ineligible_policies": {
+        "direct": "unsupported_feature"
+      },
+      "policy_call_bounds": {
+        "vision_synthesis": 2
+      },
+      "decision": {
+        "mode": "route",
+        "disposition": "rules_only",
+        "reason": "single_eligible_policy",
+        "proposal": "vision_synthesis"
+      },
+      "plan": [
+        {
+          "id": "vision",
+          "operator": "inspect_images",
+          "dependencies": []
+        },
+        {
+          "id": "synthesis",
+          "operator": "synthesize",
+          "dependencies": [
+            "vision"
+          ]
+        }
+      ],
+      "elapsed_ms": 3446.924666990526,
+      "execution_usage": {
+        "consumed_or_conservatively_charged": {
+          "calls": 2,
+          "input_tokens": 559,
+          "output_tokens": 344,
+          "cost_usd": 0.0
+        },
+        "calls": [
+          {
+            "node_id": "vision",
+            "model_id": "nemotron-nano-reasoning",
+            "status": "complete",
+            "provider_usage": {
+              "prompt_tokens": 394,
+              "completion_tokens": 211,
+              "total_tokens": 605,
+              "cost": 0,
+              "is_byok": false,
+              "prompt_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": 0,
+                "audio_tokens": 0,
+                "video_tokens": 0
+              },
+              "cost_details": {
+                "upstream_inference_cost": 0,
+                "upstream_inference_prompt_cost": 0,
+                "upstream_inference_completions_cost": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 206,
+                "image_tokens": 0,
+                "audio_tokens": 0
+              }
+            },
+            "usage_status": "reported",
+            "reserved_input_tokens": 5626,
+            "reserved_output_tokens": 4096,
+            "cost_upper_estimate_usd": 0.0,
+            "elapsed_ms": 2502.82483297633,
+            "started_ms": 0.3637499758042395,
+            "finished_ms": 2503.195208031684,
+            "cancellation_requested": false,
+            "remote_cancellation_confirmed": null,
+            "finish_reason": "stop"
+          },
+          {
+            "node_id": "synthesis",
+            "model_id": "nemotron-super-reasoning",
+            "status": "complete",
+            "provider_usage": {
+              "prompt_tokens": 165,
+              "completion_tokens": 133,
+              "total_tokens": 298,
+              "cost": 0,
+              "is_byok": false,
+              "prompt_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": 0,
+                "audio_tokens": 0,
+                "video_tokens": 0
+              },
+              "cost_details": {
+                "upstream_inference_cost": 0,
+                "upstream_inference_prompt_cost": 0,
+                "upstream_inference_completions_cost": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 123,
+                "image_tokens": 0,
+                "audio_tokens": 0
+              }
+            },
+            "usage_status": "reported",
+            "reserved_input_tokens": 17367,
+            "reserved_output_tokens": 4096,
+            "cost_upper_estimate_usd": 0.0,
+            "elapsed_ms": 943.5137499822304,
+            "started_ms": 2503.3376659848727,
+            "finished_ms": 3446.8362079933286,
+            "cancellation_requested": false,
+            "remote_cancellation_confirmed": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "outstanding_nodes": [],
+        "cost_status": "upper_estimate"
+      }
+    }
+  },
+  {
+    "model": "prism-balanced",
+    "check": "JSON uses Super",
+    "passed": true,
+    "status": 200,
+    "response": {
+      "id": "chatcmpl-prism-c364dc04af2e45d29cc925970ea8d873",
+      "object": "chat.completion",
+      "created": 1791161157,
+      "model": "prism-balanced",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "content": "{\"ok\": true}",
+            "role": "assistant"
+          },
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 285,
+        "completion_tokens": 12,
+        "total_tokens": 297
+      }
+    },
+    "trace": {
+      "request_id": "prism-c364dc04af2e45d29cc925970ea8d873",
+      "model": "prism-balanced",
+      "strategy": "direct",
+      "policy_revision": "policies-v3",
+      "accounting": "prism-utf8-v1",
+      "created": 1791161157,
+      "sources": [
+        {
+          "source_id": "msg-0-part-0",
+          "sha256": "ab96a92639e2ab429e1863bb864534a8776c131912313d8ff9ad00a2ceaaeb62",
+          "bytes": 27,
+          "role": "user",
+          "trust_scope": "caller_content"
+        }
+      ],
+      "coverage": {},
+      "stop_reason": "complete",
+      "rules_strategy": "direct",
+      "eligible_policies": [
+        "direct"
+      ],
+      "ineligible_policies": {},
+      "policy_call_bounds": {
+        "direct": 1
+      },
+      "decision": {
+        "mode": "route",
+        "disposition": "rules_only",
+        "reason": "single_eligible_policy",
+        "proposal": "direct"
+      },
+      "plan": [
+        {
+          "id": "direct",
+          "operator": "generate",
+          "dependencies": []
+        }
+      ],
+      "elapsed_ms": 846.9046249520034,
+      "execution_usage": {
+        "consumed_or_conservatively_charged": {
+          "calls": 1,
+          "input_tokens": 25,
+          "output_tokens": 47,
+          "cost_usd": 0.0
+        },
+        "calls": [
+          {
+            "node_id": "direct",
+            "model_id": "nemotron-super-reasoning",
+            "status": "complete",
+            "provider_usage": {
+              "prompt_tokens": 25,
+              "completion_tokens": 47,
+              "total_tokens": 72,
+              "cost": 0,
+              "is_byok": false,
+              "prompt_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": 0,
+                "audio_tokens": 0,
+                "video_tokens": 0
+              },
+              "cost_details": {
+                "upstream_inference_cost": 0,
+                "upstream_inference_prompt_cost": 0,
+                "upstream_inference_completions_cost": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 40,
+                "image_tokens": 0,
+                "audio_tokens": 0
+              }
+            },
+            "usage_status": "reported",
+            "reserved_input_tokens": 442,
+            "reserved_output_tokens": 4096,
+            "cost_upper_estimate_usd": 0.0,
+            "elapsed_ms": 846.218625025358,
+            "started_ms": 0.34179200883954763,
+            "finished_ms": 846.5622090152465,
+            "cancellation_requested": false,
+            "remote_cancellation_confirmed": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "outstanding_nodes": [],
+        "cost_status": "upper_estimate"
+      }
+    }
+  },
+  {
+    "model": "nemotron-nano-reasoning",
+    "check": "JSON rejected before dispatch",
+    "passed": true,
+    "status": 400
+  },
+  {
+    "check": "end-to-end capacity",
+    "status": 200,
+    "result": {
+      "object": "capacity",
+      "source": "live_evaluation",
+      "data": [
+        {
+          "model": "nemotron-super-reasoning",
+          "evaluation": "capacity-v2",
+          "checked_at": "2026-10-05T00:46:16.680900+00:00",
+          "expires_at": "2026-10-05T00:51:16.680900+00:00",
+          "cached": false,
+          "capabilities": {
+            "json_object": {
+              "supported": true,
+              "status": "passed",
+              "passed": 1,
+              "total": 1,
+              "elapsed_ms": 860,
+              "checked_at": "2026-10-05T00:45:59.154202+00:00"
+            },
+            "json_schema": {
+              "supported": true,
+              "status": "passed",
+              "passed": 1,
+              "total": 1,
+              "elapsed_ms": 4890,
+              "checked_at": "2026-10-05T00:46:04.044442+00:00"
+            },
+            "image": {
+              "supported": false,
+              "status": "rejected",
+              "passed": 0,
+              "total": 1,
+              "error_code": "upstream_unsupported_feature",
+              "upstream_status": 404,
+              "elapsed_ms": 267,
+              "checked_at": "2026-10-05T00:46:04.311902+00:00"
+            },
+            "reasoning": {
+              "supported": true,
+              "status": "passed",
+              "passed": 2,
+              "total": 2,
+              "reasoning_metadata_observed": true,
+              "elapsed_ms": 12369,
+              "checked_at": "2026-10-05T00:46:16.680872+00:00"
+            }
+          }
+        },
+        {
+          "model": "nemotron-nano-reasoning",
+          "evaluation": "capacity-v2",
+          "checked_at": "2026-10-05T00:46:23.641220+00:00",
+          "expires_at": "2026-10-05T00:51:23.641220+00:00",
+          "cached": false,
+          "capabilities": {
+            "json_object": {
+              "supported": true,
+              "status": "passed",
+              "passed": 1,
+              "total": 1,
+              "elapsed_ms": 4441,
+              "checked_at": "2026-10-05T00:46:02.740420+00:00"
+            },
+            "json_schema": {
+              "supported": null,
+              "status": "unavailable",
+              "passed": 0,
+              "total": 1,
+              "error_code": "upstream_error",
+              "upstream_status": 502,
+              "elapsed_ms": 1487,
+              "checked_at": "2026-10-05T00:46:04.227456+00:00"
+            },
+            "image": {
+              "supported": true,
+              "status": "passed",
+              "passed": 1,
+              "total": 1,
+              "elapsed_ms": 10169,
+              "checked_at": "2026-10-05T00:46:14.396323+00:00"
+            },
+            "reasoning": {
+              "supported": true,
+              "status": "passed",
+              "passed": 2,
+              "total": 2,
+              "reasoning_metadata_observed": true,
+              "elapsed_ms": 9245,
+              "checked_at": "2026-10-05T00:46:23.641191+00:00"
+            }
+          }
+        }
+      ],
+      "profile": {
+        "model": "prism-vision-reasoning",
+        "aggregation": "end_to_end_profile",
+        "supported": {
+          "json_object": true,
+          "json_schema": true,
+          "image": true,
+          "reasoning": true
+        },
+        "evaluation": {
+          "model": "prism-vision-reasoning",
+          "evaluation": "capacity-v2",
+          "checked_at": "2026-10-05T00:46:30.151667+00:00",
+          "expires_at": "2026-10-05T00:51:30.151667+00:00",
+          "cached": false,
+          "capabilities": {
+            "json_object": {
+              "supported": true,
+              "status": "passed",
+              "passed": 1,
+              "total": 1,
+              "elapsed_ms": 1143,
+              "checked_at": "2026-10-05T00:46:24.791171+00:00"
+            },
+            "json_schema": {
+              "supported": true,
+              "status": "passed",
+              "passed": 1,
+              "total": 1,
+              "elapsed_ms": 1273,
+              "checked_at": "2026-10-05T00:46:26.063915+00:00"
+            },
+            "image": {
+              "supported": true,
+              "status": "passed",
+              "passed": 1,
+              "total": 1,
+              "elapsed_ms": 2227,
+              "checked_at": "2026-10-05T00:46:28.290488+00:00"
+            },
+            "reasoning": {
+              "supported": true,
+              "status": "passed",
+              "passed": 2,
+              "total": 2,
+              "reasoning_metadata_observed": false,
+              "elapsed_ms": 1861,
+              "checked_at": "2026-10-05T00:46:30.151647+00:00"
+            }
+          },
+          "scope": "end_to_end_profile"
+        }
+      }
+    }
+  }
+]

@@ -9,7 +9,9 @@ import httpx
 async def evaluate(cases, *, base_url, api_key, baseline, candidate, output_tokens=512):
     rows = []
     async with httpx.AsyncClient(
-        timeout=300, trust_env=False, headers={"authorization": f"Bearer {api_key}"}
+        timeout=300,
+        trust_env=False,
+        headers={"authorization": f"Bearer {api_key}"} if api_key else {},
     ) as client:
         for index, case in enumerate(cases):
             pair = {"id": case.get("id", str(index)), "routes": {}}
@@ -55,7 +57,7 @@ async def evaluate(cases, *, base_url, api_key, baseline, candidate, output_toke
                         else None,
                         "error_code": data.get("error", {}).get("code"),
                     }
-                except (httpx.HTTPError, ValueError, KeyError, TypeError):
+                except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
                     pair["routes"][label] = {
                         "model": alias,
                         "completed": False,

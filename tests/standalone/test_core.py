@@ -29,10 +29,8 @@ def test_distribution_ships_only_the_standalone_package():
     assert project["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == [
         "src/prism"
     ]
-    assert not any(
-        "litellm" in dependency.lower() or "pyyaml" in dependency.lower()
-        for dependency in metadata["dependencies"]
-    )
+    assert "litellm>=1.101.0,<2" in metadata["dependencies"]
+    assert not any("pyyaml" in dep.lower() for dep in metadata["dependencies"])
 
 
 def test_init_json_validate_existing_registry_and_lightweight_help(tmp_path, capsys):

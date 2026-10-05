@@ -180,7 +180,15 @@ class Plan:
     max_depth: int = 3
     allowed_operators: frozenset[str] = field(
         default=frozenset(
-            {"generate", "extract", "verify", "synthesize", "draft", "review"}
+            {
+                "generate",
+                "extract",
+                "verify",
+                "synthesize",
+                "draft",
+                "review",
+                "inspect_images",
+            }
         )
     )
 

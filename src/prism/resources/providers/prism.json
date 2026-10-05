@@ -1,0 +1,320 @@
+{
+  "schema_version": 1,
+  "models_file": "models.json",
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "api_key_env": "PRISM_API_KEY"
+  },
+  "profiles": {
+    "prism-openai": {
+      "direct": "openai-strong",
+      "worker": "openai-small",
+      "synthesizer": "openai-strong",
+      "verifier": "openai-strong",
+      "structured_output_model": "openai-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "auto"
+    },
+    "prism-openai-reviewed": {
+      "direct": "openai-strong",
+      "worker": "openai-small",
+      "synthesizer": "openai-strong",
+      "verifier": "openai-strong",
+      "structured_output_model": "openai-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "draft_review",
+      "allowed_policies": [
+        "direct",
+        "draft_review"
+      ]
+    },
+    "prism-openai-vision": {
+      "direct": "openai-strong",
+      "worker": "openai-small",
+      "synthesizer": "openai-strong",
+      "verifier": "openai-strong",
+      "structured_output_model": "openai-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "vision_synthesis",
+      "allowed_policies": [
+        "direct",
+        "vision_synthesis"
+      ]
+    },
+    "nano-openai": {
+      "direct": "openai-strong",
+      "worker": "nemotron-nano-reasoning",
+      "synthesizer": "openai-strong",
+      "verifier": "openai-strong",
+      "structured_output_model": "openai-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "text_synthesis",
+      "allowed_policies": [
+        "direct",
+        "text_synthesis"
+      ]
+    },
+    "omni-openai": {
+      "direct": "openai-strong",
+      "worker": "nemotron-nano-reasoning",
+      "synthesizer": "openai-strong",
+      "verifier": "openai-strong",
+      "structured_output_model": "openai-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "vision_synthesis",
+      "allowed_policies": [
+        "direct",
+        "vision_synthesis"
+      ]
+    },
+    "prism-claude": {
+      "direct": "claude-strong",
+      "worker": "claude-small",
+      "synthesizer": "claude-strong",
+      "verifier": "claude-strong",
+      "structured_output_model": "claude-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "auto"
+    },
+    "prism-claude-reviewed": {
+      "direct": "claude-strong",
+      "worker": "claude-small",
+      "synthesizer": "claude-strong",
+      "verifier": "claude-strong",
+      "structured_output_model": "claude-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "draft_review",
+      "allowed_policies": [
+        "direct",
+        "draft_review"
+      ]
+    },
+    "prism-claude-vision": {
+      "direct": "claude-strong",
+      "worker": "claude-small",
+      "synthesizer": "claude-strong",
+      "verifier": "claude-strong",
+      "structured_output_model": "claude-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "vision_synthesis",
+      "allowed_policies": [
+        "direct",
+        "vision_synthesis"
+      ]
+    },
+    "nano-claude": {
+      "direct": "claude-strong",
+      "worker": "nemotron-nano-reasoning",
+      "synthesizer": "claude-strong",
+      "verifier": "claude-strong",
+      "structured_output_model": "claude-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "text_synthesis",
+      "allowed_policies": [
+        "direct",
+        "text_synthesis"
+      ]
+    },
+    "omni-claude": {
+      "direct": "claude-strong",
+      "worker": "nemotron-nano-reasoning",
+      "synthesizer": "claude-strong",
+      "verifier": "claude-strong",
+      "structured_output_model": "claude-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "vision_synthesis",
+      "allowed_policies": [
+        "direct",
+        "vision_synthesis"
+      ]
+    },
+    "prism-gemini": {
+      "direct": "gemini-strong",
+      "worker": "gemini-small",
+      "synthesizer": "gemini-strong",
+      "verifier": "gemini-strong",
+      "structured_output_model": "gemini-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "auto"
+    },
+    "prism-gemini-reviewed": {
+      "direct": "gemini-strong",
+      "worker": "gemini-small",
+      "synthesizer": "gemini-strong",
+      "verifier": "gemini-strong",
+      "structured_output_model": "gemini-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "draft_review",
+      "allowed_policies": [
+        "direct",
+        "draft_review"
+      ]
+    },
+    "prism-gemini-vision": {
+      "direct": "gemini-strong",
+      "worker": "gemini-small",
+      "synthesizer": "gemini-strong",
+      "verifier": "gemini-strong",
+      "structured_output_model": "gemini-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "vision_synthesis",
+      "allowed_policies": [
+        "direct",
+        "vision_synthesis"
+      ]
+    },
+    "nano-gemini": {
+      "direct": "gemini-strong",
+      "worker": "nemotron-nano-reasoning",
+      "synthesizer": "gemini-strong",
+      "verifier": "gemini-strong",
+      "structured_output_model": "gemini-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "text_synthesis",
+      "allowed_policies": [
+        "direct",
+        "text_synthesis"
+      ]
+    },
+    "omni-gemini": {
+      "direct": "gemini-strong",
+      "worker": "nemotron-nano-reasoning",
+      "synthesizer": "gemini-strong",
+      "verifier": "gemini-strong",
+      "structured_output_model": "gemini-strong",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "vision_synthesis",
+      "allowed_policies": [
+        "direct",
+        "vision_synthesis"
+      ]
+    },
+    "prism-gemini-pro": {
+      "direct": "gemini-pro",
+      "worker": "gemini-small",
+      "synthesizer": "gemini-pro",
+      "verifier": "gemini-pro",
+      "structured_output_model": "gemini-pro",
+      "worker_output_tokens": 4096,
+      "public_max_output_tokens": 4096,
+      "intermediate_max_bytes": 12000,
+      "limits": {
+        "max_calls": 16,
+        "deadline_seconds": 300,
+        "max_parallel": 2
+      },
+      "strategy": "auto"
+    }
+  },
+  "capacity": {
+    "output_tokens": 4096,
+    "probe_timeout_seconds": 120,
+    "max_parallel": 1
+  }
+}

@@ -11,7 +11,9 @@ import anyio
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from . import __version__
 from .backends import OpenAIBackend
+from .capacity import CapacityEvaluator, ProfileCapacityEvaluator
 from .config import load_config
 from .contracts import parse_json, validate_request
 from .decision import LayaDecision
@@ -47,7 +49,9 @@ async def connected(request, coroutine):
         await asyncio.gather(task, watcher, return_exceptions=True)
 
 
-def create_app(config, *, models=None, backend=None, decision_agent=None):
+def create_app(
+    config, *, models=None, backend=None, decision_agent=None, no_auth=False
+):
     if models is None:
         config, models = load_config(config)
     transport = backend or OpenAIBackend(models)
@@ -55,11 +59,13 @@ def create_app(config, *, models=None, backend=None, decision_agent=None):
     engine = ExecutionEngine(config, models, transport, decision)
     traces = TraceStore(config.server.trace_capacity, config.server.trace_ttl_seconds)
     admitted = 0
+    capacity = CapacityEvaluator(models, transport, config.capacity)
+    profile_capacity = ProfileCapacityEvaluator(engine, config.capacity)
+    profile_capacity.slots = capacity.slots
 
     @asynccontextmanager
     async def lifespan(app):
-        # Refuse to start any inference service without authentication configured.
-        if not os.environ.get(config.server.api_key_env):
+        if not no_auth and not os.environ.get(config.server.api_key_env):
             raise ValueError("Prism API key environment variable is unset")
         try:
             await asyncio.to_thread(decision.prepare)
@@ -70,7 +76,7 @@ def create_app(config, *, models=None, backend=None, decision_agent=None):
 
     app = FastAPI(
         title="Prism",
-        version="0.2.0",
+        version=__version__,
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -78,6 +84,8 @@ def create_app(config, *, models=None, backend=None, decision_agent=None):
     )
     app.state.engine = engine
     app.state.traces = traces
+    app.state.capacity = capacity
+    app.state.no_auth = no_auth
 
     @app.exception_handler(PrismError)
     async def public_error(request, error):
@@ -96,6 +104,9 @@ def create_app(config, *, models=None, backend=None, decision_agent=None):
         )
 
     def authenticate(request):
+        if no_auth:
+            # One public trace namespace; callers cannot select owners via headers.
+            return "anonymous"
         configured = os.environ.get(config.server.api_key_env)
         if not configured:
             raise PrismError(
@@ -130,6 +141,120 @@ def create_app(config, *, models=None, backend=None, decision_agent=None):
             raise PrismError("trace not found or expired", "trace_not_found", 404)
         return trace
 
+    @app.get("/capacity")
+    @app.post("/capacity")
+    async def show_capacity(
+        request: Request, model: str | None = None, refresh: bool = False
+    ):
+        nonlocal admitted
+        authenticate(request)
+        if admitted >= config.server.max_concurrent_requests:
+            raise PrismError(
+                "service admission capacity exceeded", "admission_limit", 429
+            )
+        payload = bytearray()
+        async for chunk in request.stream():
+            payload.extend(chunk)
+            if len(payload) > 1024:
+                raise PrismError(
+                    "capacity request body exceeds 1024 bytes", "payload_too_large", 413
+                )
+        if payload:
+            try:
+                body = parse_json(payload)
+            except (ValueError, UnicodeDecodeError) as exc:
+                raise PrismError("malformed JSON request", "invalid_json") from exc
+            if (
+                request.method != "POST"
+                or not isinstance(body, dict)
+                or set(body) - {"model", "refresh"}
+            ):
+                raise PrismError(
+                    "capacity body accepts only model and refresh", "invalid_request"
+                )
+            if "model" in body:
+                if (
+                    not isinstance(body["model"], str)
+                    or not body["model"]
+                    or "model" in request.query_params
+                ):
+                    raise PrismError(
+                        "model must be a single nonempty configured alias",
+                        "invalid_request",
+                    )
+                model = body["model"]
+            if "refresh" in body:
+                if (
+                    type(body["refresh"]) is not bool
+                    or "refresh" in request.query_params
+                ):
+                    raise PrismError(
+                        "refresh must be a single boolean", "invalid_request"
+                    )
+                refresh = body["refresh"]
+        profile = None
+        if model is None:
+            ids = list(models)
+        elif model in config.profiles:
+            profile = config.profiles[model]
+            ids = list(
+                dict.fromkeys(
+                    ref
+                    for ref in (
+                        profile.direct,
+                        profile.worker,
+                        profile.worker_fallback,
+                        profile.synthesizer,
+                        profile.structured_output_model,
+                        profile.verifier,
+                        profile.evidence_compaction.model
+                        if profile.evidence_compaction
+                        else None,
+                        profile.evidence_reduction.model
+                        if profile.evidence_reduction
+                        else None,
+                        *(
+                            profile.optimization.model_ids
+                            if profile.optimization
+                            else []
+                        ),
+                    )
+                    if ref
+                )
+            )
+        elif model in models:
+            ids = [model]
+        else:
+            raise PrismError(
+                "unknown configured model combination or profile",
+                "model_not_found",
+                404,
+            )
+        admitted += 1
+        try:
+            measured = await connected(request, capacity.query(ids, refresh))
+            result = {
+                "object": "capacity",
+                "source": "live_evaluation",
+                "data": measured,
+            }
+            if profile:
+                observation = (
+                    await connected(request, profile_capacity.query([model], refresh))
+                )[0]
+                result["profile"] = {
+                    "model": model,
+                    "aggregation": "end_to_end_profile",
+                    "supported": {
+                        feature: value["supported"]
+                        for feature, value in observation["capabilities"].items()
+                    },
+                    "evaluation": observation,
+                }
+            return JSONResponse(result, headers={"cache-control": "no-store"})
+        finally:
+            admitted -= 1
+
     @app.post("/v1/chat/completions")
     async def chat(request: Request):
         nonlocal admitted
@@ -162,6 +287,10 @@ def create_app(config, *, models=None, backend=None, decision_agent=None):
                 "x-prism-policy": execution["strategy"],
                 "x-prism-coverage": "focused"
                 if execution["strategy"] == "retrieve_read"
+                else "visual_observations"
+                if execution["strategy"] == "vision_synthesis"
+                else "text_observations"
+                if execution["strategy"] == "text_synthesis"
                 else "full",
             }
             if body.get("stream"):

@@ -19,7 +19,15 @@ class StrictModel(BaseModel):
 class RawModel(StrictModel):
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)
-    base_url: str
+    base_url: str | None = None
+    # Explicit SDK transport; OpenAI-compatible URLs default to openai.
+    provider: str | None = None
+    api_version: str | None = None
+    parameters: dict = Field(default_factory=dict, repr=False)
+    provider_options: dict = Field(default_factory=dict, repr=False)
+    timeout_seconds: float = Field(default=120, gt=0, le=86400)
+    rate_limit_rpm: int | None = Field(default=None, ge=1)
+    image_token_reserve: int = Field(default=4096, ge=1)
     api_key: str | None = Field(default=None, repr=False)
     api_key_env: str | None = None
     context_window: int = Field(default=32768, ge=512)
@@ -38,6 +46,8 @@ class RawModel(StrictModel):
             "tools",
             "json_object",
             "json_schema",
+            "image",
+            "reasoning_effort",
         }
     )
     input_cost_per_million: float | None = Field(default=None, ge=0)
@@ -46,8 +56,8 @@ class RawModel(StrictModel):
 
     @model_validator(mode="after")
     def endpoint(self):
-        url = urlsplit(self.base_url)
-        if (
+        url = urlsplit(self.base_url or "")
+        if self.base_url is not None and (
             url.scheme not in {"http", "https"}
             or not url.hostname
             or url.username
@@ -58,6 +68,16 @@ class RawModel(StrictModel):
             raise ValueError(
                 "base_url must be an HTTP(S) URL without credentials/query"
             )
+        if not self.base_url and not self.provider and "/" not in self.name:
+            raise ValueError("native models require a LiteLLM provider or model prefix")
+        # Defaults may tune inference, but cannot change identity, credentials,
+        # accounting, retry behavior, or execute SDK callbacks/mock functions.
+        from .registry import validate_parameters
+
+        validate_parameters(self.parameters, self.provider_options)
+        for key in ("max_tokens", "max_completion_tokens"):
+            if self.parameters.get(key, 0) > self.max_output_tokens:
+                raise ValueError("model output default exceeds backend output cap")
         if self.api_key and self.api_key_env:
             raise ValueError("use api_key or api_key_env, not both")
         if self.safety_margin + self.max_output_tokens >= self.context_window:
@@ -75,6 +95,22 @@ class RawModel(StrictModel):
                 )
             return value
         return self.api_key
+
+    def call_parameters(self, parameters, output):
+        defaults = {k: v for k, v in self.parameters.items() if k != "stream"}
+        spelling = next(
+            (k for k in ("max_completion_tokens", "max_tokens") if k in parameters),
+            next(
+                (k for k in ("max_completion_tokens", "max_tokens") if k in defaults),
+                "max_completion_tokens",
+            ),
+        )
+        defaults.pop("max_tokens", None)
+        defaults.pop("max_completion_tokens", None)
+        result = {**defaults, **parameters, spelling: output}
+        if self.enable_thinking is not None and "reasoning_effort" not in result:
+            result["chat_template_kwargs"] = {"enable_thinking": self.enable_thinking}
+        return result
 
 
 class Limits(StrictModel):
@@ -127,6 +163,7 @@ class Profile(StrictModel):
     evidence_compaction: EvidenceCompaction | None = None
     evidence_reduction: EvidenceReduction | None = None
     synthesizer: str | None = None
+    structured_output_model: str | None = None
     verifier: str | None = None
     strategy: Literal[
         "auto",
@@ -136,6 +173,8 @@ class Profile(StrictModel):
         "verified_map",
         "retrieve_read",
         "draft_review",
+        "vision_synthesis",
+        "text_synthesis",
     ] = "auto"
     allowed_policies: list[PolicyName] = Field(
         default_factory=lambda: [
@@ -151,7 +190,7 @@ class Profile(StrictModel):
     batch_max_partitions: int = Field(default=4, ge=1, le=32)
     retrieval_top_k: int = Field(default=4, ge=1, le=128)
     public_max_output_tokens: int = Field(default=2048, ge=1)
-    worker_output_tokens: int = Field(default=1024, ge=128)
+    worker_output_tokens: int = Field(default=1024, ge=1)
     partition_bytes: int = Field(default=6000, ge=128)
     intermediate_max_bytes: int = Field(default=4096, ge=1, le=65536)
     optimization: OptimizationConfig | None = None
@@ -180,12 +219,20 @@ class ServerConfig(StrictModel):
     public_url: str | None = None
 
 
+class CapacityConfig(StrictModel):
+    ttl_seconds: float = Field(default=60, ge=0, le=86400)
+    probe_timeout_seconds: float = Field(default=30, gt=0, le=600)
+    output_tokens: int = Field(default=512, ge=64, le=4096)
+    max_parallel: int = Field(default=2, ge=1, le=16)
+
+
 class PrismConfig(StrictModel):
     schema_version: Literal[1] = 1
     models_file: str = "models.json"
     server: ServerConfig = Field(default_factory=ServerConfig)
-    profiles: dict[str, Profile]
+    profiles: dict[str, Profile] = Field(default_factory=dict)
     decision: DecisionConfig = Field(default_factory=DecisionConfig)
+    capacity: CapacityConfig = Field(default_factory=CapacityConfig)
 
 
 class ModelFile(StrictModel):
@@ -214,23 +261,41 @@ def validate_optimization(profile, models):
 def load_config(path):
     path = Path(path).resolve()
     config = PrismConfig.model_validate(json.loads(path.read_text()))
-    data = json.loads((path.parent / config.models_file).read_text())
-    # Existing {models: [{name, base_url, api_key}]} files continue to work.
-    if isinstance(data, dict) and isinstance(data.get("models"), list):
-        for model in data["models"]:
-            if isinstance(model, dict) and "id" not in model and "name" in model:
-                model["id"] = model["name"]
-    raw = ModelFile.model_validate(data).models
+    from .registry import read_models
+
+    raw = [
+        RawModel.model_validate(item)
+        for item in read_models(path.parent / config.models_file)
+    ]
     models = {model.id: model for model in raw}
     if not models or len(models) != len(raw):
         raise ValueError("raw model IDs must be nonempty and unique")
-    if not config.profiles:
-        raise ValueError("at least one virtual model profile is required")
+    # Profiles only define orchestration. Every registry combination is callable
+    # without repeating any physical model metadata in prism.json.
+    for model in raw:
+        config.profiles.setdefault(
+            model.id,
+            Profile(
+                direct=model.id,
+                strategy="direct",
+                allowed_policies=["direct"],
+                public_max_output_tokens=min(
+                    model.max_output_tokens,
+                    model.parameters.get(
+                        "max_completion_tokens",
+                        model.parameters.get("max_tokens", 2048),
+                    ),
+                ),
+                worker_output_tokens=min(1024, model.max_output_tokens),
+            ),
+        )
     own_urls = [f"http://{config.server.host}:{config.server.port}"]
     if config.server.public_url:
         own_urls.append(config.server.public_url)
     loopback = {"127.0.0.1", "localhost", "::1", "0.0.0.0", "::"}
     for model in raw:
+        if not model.base_url:
+            continue
         target = urlsplit(model.base_url)
         target_port = target.port or (443 if target.scheme == "https" else 80)
         for own in own_urls:
@@ -250,6 +315,7 @@ def load_config(path):
                 profile.worker,
                 profile.worker_fallback,
                 profile.synthesizer,
+                profile.structured_output_model,
                 profile.verifier,
                 profile.evidence_compaction.model
                 if profile.evidence_compaction
@@ -263,7 +329,11 @@ def load_config(path):
         # Optimized assignments are admitted per request/output size. Unused
         # legacy stage references must not constrain heterogeneous model pools.
         if profile.optimization is None:
-            for ref in {profile.direct, profile.synthesizer or profile.direct}:
+            for ref in {
+                profile.direct,
+                profile.synthesizer or profile.direct,
+                profile.structured_output_model or profile.direct,
+            }:
                 if profile.public_max_output_tokens > models[ref].max_output_tokens:
                     raise ValueError("public output cap exceeds backend output cap")
             worker = models[profile.worker or profile.direct]

@@ -64,8 +64,17 @@ async def test_aliases_share_physical_concurrency_and_operator_thinking_setting(
             body["chat_template_kwargs"] == {"enable_thinking": False} for body in seen
         )
         # Public reasoning instructions take precedence over the operator default.
-        request = backend.request(model, [], {"reasoning_effort": "high"}, 128)
-        assert "chat_template_kwargs" not in json.loads(request.content)
+        reservation = await ledger.reserve("reasoning", model, 1024, 128)
+        await backend.complete(
+            model,
+            [{"role": "user", "content": "task"}],
+            {"reasoning_effort": "high"},
+            128,
+            ledger,
+            reservation,
+        )
+        assert "chat_template_kwargs" not in seen[-1]
+        await backend.close()
 
 
 @pytest.mark.asyncio

@@ -14,6 +14,8 @@ ROLE_WEIGHTS = {
     "batched_map": {"worker": 0.5, "synthesizer": 0.5},
     "verified_map": {"worker": 0.25, "verifier": 0.25, "synthesizer": 0.5},
     "draft_review": {"worker": 0.25, "verifier": 0.25, "synthesizer": 0.5},
+    "vision_synthesis": {"worker": 0.5, "synthesizer": 0.5},
+    "text_synthesis": {"worker": 0.5, "synthesizer": 0.5},
 }
 
 

@@ -1,0 +1,13 @@
+services:
+  prism:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY}
+      PRISM_API_KEY: ${PRISM_API_KEY:?set PRISM_API_KEY, or use docker run with --no-auth}
+    volumes:
+      - prism-huggingface:/home/prism/.cache/huggingface
+    restart: unless-stopped
+volumes:
+  prism-huggingface:

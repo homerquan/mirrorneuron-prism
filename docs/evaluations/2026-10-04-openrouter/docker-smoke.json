@@ -1,0 +1,120 @@
+{
+  "health": {
+    "status": "ok"
+  },
+  "models_status": 200,
+  "completion_status": 200,
+  "completion": {
+    "id": "chatcmpl-prism-be008347a5af4c29980945570fa28d15",
+    "object": "chat.completion",
+    "created": 1791162289,
+    "model": "prism-balanced",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "content": "{\"ok\": true}",
+          "role": "assistant"
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 288,
+      "completion_tokens": 12,
+      "total_tokens": 300
+    }
+  },
+  "trace": {
+    "request_id": "prism-be008347a5af4c29980945570fa28d15",
+    "model": "prism-balanced",
+    "strategy": "direct",
+    "policy_revision": "policies-v3",
+    "accounting": "prism-utf8-v1",
+    "created": 1791162289,
+    "sources": [
+      {
+        "source_id": "msg-0-part-0",
+        "sha256": "5dfa66dc04b0de7d7552d83431aef0d1ace9177248234f75ce8cd339366f633f",
+        "bytes": 25,
+        "role": "user",
+        "trust_scope": "caller_content"
+      }
+    ],
+    "coverage": {},
+    "stop_reason": "complete",
+    "rules_strategy": "direct",
+    "eligible_policies": [
+      "direct"
+    ],
+    "ineligible_policies": {},
+    "policy_call_bounds": {
+      "direct": 1
+    },
+    "decision": {
+      "mode": "route",
+      "disposition": "rules_only",
+      "reason": "single_eligible_policy",
+      "proposal": "direct"
+    },
+    "plan": [
+      {
+        "id": "direct",
+        "operator": "generate",
+        "dependencies": []
+      }
+    ],
+    "elapsed_ms": 2052.6830430026166,
+    "execution_usage": {
+      "consumed_or_conservatively_charged": {
+        "calls": 1,
+        "input_tokens": 22,
+        "output_tokens": 69,
+        "cost_usd": 0.0
+      },
+      "calls": [
+        {
+          "node_id": "direct",
+          "model_id": "nemotron-super-reasoning",
+          "status": "complete",
+          "provider_usage": {
+            "prompt_tokens": 22,
+            "completion_tokens": 69,
+            "total_tokens": 91,
+            "cost": 0,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0,
+              "upstream_inference_prompt_cost": 0,
+              "upstream_inference_completions_cost": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 62,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "usage_status": "reported",
+          "reserved_input_tokens": 445,
+          "reserved_output_tokens": 4096,
+          "cost_upper_estimate_usd": 0.0,
+          "elapsed_ms": 2052.1093760035,
+          "started_ms": 0.5012080073356628,
+          "finished_ms": 2052.5919180363417,
+          "cancellation_requested": false,
+          "remote_cancellation_confirmed": null,
+          "finish_reason": "stop"
+        }
+      ],
+      "outstanding_nodes": [],
+      "cost_status": "upper_estimate"
+    }
+  },
+  "client_auth": "explicit --no-auth; no Authorization header sent"
+}

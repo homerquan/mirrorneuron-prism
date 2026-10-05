@@ -4,39 +4,86 @@ import argparse
 import asyncio
 import json
 import os
+import shlex
 import sys
 from importlib.resources import files
 from pathlib import Path
 
+from rich_argparse import RichHelpFormatter
+
 from . import __version__
+from .cli_ui import Output
 from .config import load_config
 from .errors import OptimizationConfigurationError, PrismError
 
 
+class PrismParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("formatter_class", RichHelpFormatter)
+        super().__init__(*args, **kwargs)
+
+
 def parser():
-    root = argparse.ArgumentParser(
-        prog="prism", description="Standalone adaptive LLM proxy"
+    root = PrismParser(
+        prog="prism",
+        description="Prism · one API, bounded model workflows",
+        epilog="Quick start: prism init --preset openrouter → prism validate → prism serve\nInspect: prism profiles · prism models · prism capacity --model ALIAS\nUse --json for scripts; NO_COLOR=1 disables terminal color.",
     )
     root.add_argument("--version", action="version", version=f"prism {__version__}")
     commands = root.add_subparsers(dest="command", required=True)
     commands.add_parser("policies", help="list executable routing policies")
     init = commands.add_parser("init", help="create JSON config and raw model registry")
     init.add_argument("--out-dir", type=Path, default=Path("."))
-    for name in ("serve", "validate", "doctor"):
-        cmd = commands.add_parser(name)
+    init.add_argument(
+        "--preset",
+        choices=("local", "openrouter", "providers"),
+        default="local",
+        help="local server, free OpenRouter mix, or native cloud examples",
+    )
+    descriptions = {
+        "serve": "start the OpenAI-compatible server",
+        "validate": "check model and profile configuration without inference",
+        "doctor": "check credentials and optionally probe backends",
+        "capacity": "measure JSON, vision, and reasoning behavior",
+        "models": "inspect configured physical models and credentials",
+        "profiles": "inspect virtual aliases and stage assignments",
+    }
+    for name, description in descriptions.items():
+        cmd = commands.add_parser(name, help=description)
         cmd.add_argument("--config", default="prism.json")
         if name == "serve":
             cmd.add_argument("--host")
             cmd.add_argument("--port", type=int)
+            cmd.add_argument(
+                "--no-auth",
+                action="store_true",
+                help="explicitly disable Prism client authentication (upstream keys still apply)",
+            )
         if name == "doctor":
             cmd.add_argument("--probe-backends", action="store_true")
-    trace = commands.add_parser("trace")
+            cmd.add_argument(
+                "--no-auth",
+                action="store_true",
+                help="check readiness for an explicitly unauthenticated deployment",
+            )
+        if name == "capacity":
+            cmd.add_argument(
+                "--model",
+                action="append",
+                help="physical model or profile alias; repeat to select several",
+            )
+    trace = commands.add_parser("trace", help="inspect a request's execution trace")
     trace_commands = trace.add_subparsers(dest="trace_command", required=True)
-    show = trace_commands.add_parser("show")
+    show = trace_commands.add_parser(
+        "show", help="fetch metadata from a running server"
+    )
     show.add_argument("request_id")
     show.add_argument("--base-url", default="http://127.0.0.1:8080/v1")
     show.add_argument("--api-key-env", default="PRISM_API_KEY")
-    evaluation = commands.add_parser("eval")
+    show.add_argument("--no-auth", action="store_true")
+    evaluation = commands.add_parser(
+        "eval", help="run and summarize your task fixtures"
+    )
     eval_commands = evaluation.add_subparsers(dest="eval_command", required=True)
     run = eval_commands.add_parser(
         "run", help="paired cases against two server aliases"
@@ -46,6 +93,7 @@ def parser():
     run.add_argument("--candidate", default="prism")
     run.add_argument("--base-url", default="http://127.0.0.1:8080/v1")
     run.add_argument("--api-key-env", default="PRISM_API_KEY")
+    run.add_argument("--no-auth", action="store_true")
     run.add_argument("--output-tokens", type=int, default=512)
     run.add_argument("--out", type=Path, required=True)
     compare = eval_commands.add_parser(
@@ -75,6 +123,7 @@ def parser():
     bench_run.add_argument("--candidate", default="prism-evidence")
     bench_run.add_argument("--base-url", default="http://127.0.0.1:8080/v1")
     bench_run.add_argument("--api-key-env", default="PRISM_API_KEY")
+    bench_run.add_argument("--no-auth", action="store_true")
     bench_run.add_argument("--repeats", type=int, default=3)
     bench_run.add_argument("--warmup", type=int, default=1)
     bench_run.add_argument("--output-tokens", type=int, default=2048)
@@ -93,21 +142,44 @@ def parser():
     bench_compare.add_argument(
         "--out-dir", type=Path, help="save comparison JSON and Markdown in a new folder"
     )
+
+    def output_flags(cmd, top=False):
+        cmd.add_argument(
+            "--output",
+            choices=("auto", "json", "table"),
+            default="auto" if top else argparse.SUPPRESS,
+            help="terminal tables or script-friendly JSON (default: auto)",
+        )
+        cmd.add_argument(
+            "--json",
+            dest="output",
+            action="store_const",
+            const="json",
+            default=argparse.SUPPRESS,
+            help="emit plain JSON, including when attached to a terminal",
+        )
+        for action in cmd._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                for child in action.choices.values():
+                    output_flags(child)
+
+    output_flags(root, True)
     return root
 
 
-def emit(value):
-    print(json.dumps(value, indent=2))
-
-
-async def doctor(config, models, probe):
+async def doctor(config, models, probe, no_auth=False):
     import importlib.metadata
 
-    import httpx
+    from .backends import LiteLLMBackend
+    from .config import Limits
+    from .contracts import check_context
+    from .runtime import Ledger
 
     result = {
         "valid": True,
-        "authentication_ready": bool(os.environ.get(config.server.api_key_env)),
+        "authentication_ready": no_auth
+        or bool(os.environ.get(config.server.api_key_env)),
+        "authentication_mode": "disabled" if no_auth else "bearer",
         "decision_mode": config.decision.mode,
         "models": [],
     }
@@ -115,21 +187,26 @@ async def doctor(config, models, probe):
         result["laya_version"] = importlib.metadata.version("laya")
     except importlib.metadata.PackageNotFoundError:
         result["laya_version"] = None
-    async with httpx.AsyncClient(timeout=5, trust_env=False) as client:
+    transport = LiteLLMBackend(models)
+    try:
         for model in models.values():
             item = {"id": model.id, "probed": probe}
             if probe:
                 try:
-                    key = model.credential()
-                    response = await client.get(
-                        model.base_url.rstrip("/") + "/models",
-                        headers={"authorization": f"Bearer {key}"} if key else {},
+                    messages = [{"role": "user", "content": "Reply OK."}]
+                    output = min(64, model.max_output_tokens)
+                    tokens = check_context(messages, {}, output, model)
+                    ledger = Ledger(Limits(max_calls=1, deadline_seconds=10))
+                    reservation = await ledger.reserve("doctor", model, tokens, output)
+                    await transport.complete(
+                        model, messages, {}, output, ledger, reservation
                     )
-                    item["ready"] = response.status_code == 200
-                    item["status"] = response.status_code
-                except (httpx.HTTPError, PrismError):
-                    item["ready"] = False
+                    item["ready"] = True
+                except PrismError as exc:
+                    item.update(ready=False, error_code=exc.code)
             result["models"].append(item)
+    finally:
+        await transport.close()
     result["ready"] = (
         result["authentication_ready"]
         and result["laya_version"] is not None
@@ -139,7 +216,14 @@ async def doctor(config, models, probe):
 
 
 def main(argv=None):
-    args = parser().parse_args(argv)
+    root = parser()
+    arguments = sys.argv[1:] if argv is None else argv
+    if not arguments:
+        root.print_help()
+        return 0
+    args = root.parse_args(arguments)
+    output = Output(args.output)
+    emit = output.emit
     try:
         if args.command == "policies":
             from .policies import POLICIES
@@ -150,9 +234,11 @@ def main(argv=None):
                         {
                             "id": name,
                             "description": description,
-                            "coverage": "focused"
-                            if name == "retrieve_read"
-                            else "full",
+                            "coverage": {
+                                "retrieve_read": "focused",
+                                "vision_synthesis": "visual_observations",
+                                "text_synthesis": "text_observations",
+                            }.get(name, "full"),
                         }
                         for name, description in POLICIES.items()
                     ],
@@ -168,13 +254,31 @@ def main(argv=None):
                     "configuration already exists; init never overwrites files"
                 )
             args.out_dir.mkdir(parents=True, exist_ok=True)
+            resources = files("prism").joinpath("resources")
+            if args.preset != "local":
+                resources = resources.joinpath(args.preset)
             for path in paths:
-                path.write_text(
-                    files("prism").joinpath("resources", path.name).read_text()
-                )
-            emit({"created": [str(path.resolve()) for path in paths]})
+                path.write_text(resources.joinpath(path.name).read_text())
+            config_path = shlex.quote(str(paths[0].resolve()))
+            emit(
+                {
+                    "created": [str(path.resolve()) for path in paths],
+                    "next_steps": [
+                        f"prism validate --config {config_path}",
+                        f"prism profiles --config {config_path}",
+                        f"prism serve --config {config_path}",
+                    ],
+                }
+            )
             return 0
-        if args.command in {"serve", "validate", "doctor"}:
+        if args.command in {
+            "serve",
+            "validate",
+            "doctor",
+            "capacity",
+            "models",
+            "profiles",
+        }:
             config, models = load_config(args.config)
             if args.command == "validate":
                 emit(
@@ -186,10 +290,85 @@ def main(argv=None):
                 )
                 return 0
             if args.command == "doctor":
-                result = asyncio.run(doctor(config, models, args.probe_backends))
+                with output.status("Checking backend readiness…"):
+                    result = asyncio.run(
+                        doctor(config, models, args.probe_backends, args.no_auth)
+                    )
                 emit(result)
                 return 0 if result["ready"] else 3
-            if not os.environ.get(config.server.api_key_env):
+            if args.command == "models":
+                emit(
+                    {
+                        "object": "models",
+                        "data": [
+                            {
+                                "id": m.id,
+                                "name": m.name,
+                                "context_window": m.context_window,
+                                "max_output_tokens": m.max_output_tokens,
+                                "capabilities": sorted(m.capabilities),
+                                "credential_env": m.api_key_env,
+                                "credential_ready": bool(os.environ.get(m.api_key_env))
+                                if m.api_key_env
+                                else True,
+                            }
+                            for m in models.values()
+                        ],
+                    }
+                )
+                return 0
+            if args.command == "profiles":
+                emit(
+                    {
+                        "object": "profiles",
+                        "data": [
+                            {
+                                "id": alias,
+                                **profile.model_dump(
+                                    include={
+                                        "strategy",
+                                        "direct",
+                                        "worker",
+                                        "synthesizer",
+                                        "verifier",
+                                        "structured_output_model",
+                                    }
+                                ),
+                            }
+                            for alias, profile in config.profiles.items()
+                        ],
+                    }
+                )
+                return 0
+            if args.command == "capacity":
+                from .backends import LiteLLMBackend
+                from .capacity import CapacityEvaluator, ProfileCapacityEvaluator
+                from .decision import LayaDecision
+                from .engine import ExecutionEngine
+
+                async def capacity_run():
+                    transport = LiteLLMBackend(models)
+                    try:
+                        physical = CapacityEvaluator(models, transport, config.capacity)
+                        engine = ExecutionEngine(
+                            config, models, transport, LayaDecision(config.decision)
+                        )
+                        profiles = ProfileCapacityEvaluator(engine, config.capacity)
+                        results = []
+                        for alias in args.model or list(models):
+                            evaluator = physical if alias in models else profiles
+                            results.extend(await evaluator.query([alias], True))
+                        return results
+                    finally:
+                        await transport.close()
+
+                with output.status("Running live capability challenges…"):
+                    results = asyncio.run(capacity_run())
+                emit(
+                    {"object": "capacity", "source": "live_evaluation", "data": results}
+                )
+                return 0
+            if not args.no_auth and not os.environ.get(config.server.api_key_env):
                 raise PrismError(
                     "set the configured Prism API key environment variable before serving"
                 )
@@ -200,8 +379,14 @@ def main(argv=None):
 
             from .api import create_app
 
+            output.serving(
+                config.server.host,
+                config.server.port,
+                len(config.profiles),
+                args.no_auth,
+            )
             uvicorn.run(
-                create_app(config, models=models),
+                create_app(config, models=models, no_auth=args.no_auth),
                 host=config.server.host,
                 port=config.server.port,
             )
@@ -210,14 +395,21 @@ def main(argv=None):
             import httpx
 
             key = os.environ.get(args.api_key_env)
-            if not key:
+            if not args.no_auth and not key:
                 raise PrismError("Prism API key environment variable is unset")
-            response = httpx.get(
-                args.base_url.rstrip("/") + "/prism/traces/" + args.request_id,
-                headers={"authorization": f"Bearer {key}"},
-                timeout=10,
-                trust_env=False,
-            )
+            try:
+                response = httpx.get(
+                    args.base_url.rstrip("/") + "/prism/traces/" + args.request_id,
+                    headers={} if args.no_auth else {"authorization": f"Bearer {key}"},
+                    timeout=10,
+                    trust_env=False,
+                )
+            except httpx.HTTPError as exc:
+                raise PrismError(
+                    "unable to reach Prism; check --base-url and server readiness",
+                    "transport_error",
+                    503,
+                ) from exc
             if response.status_code != 200:
                 raise PrismError(
                     "trace unavailable", "trace_not_found", response.status_code
@@ -231,7 +423,7 @@ def main(argv=None):
                 emit(compare(args.runs, args.out_dir))
                 return 0
             key = os.environ.get(args.api_key_env)
-            if not key:
+            if not args.no_auth and not key:
                 raise PrismError("Prism API key environment variable is unset")
 
             def progress(record):
@@ -247,7 +439,7 @@ def main(argv=None):
             emit(
                 asyncio.run(
                     run(
-                        api_key=key,
+                        api_key=key or "",
                         baseline=args.baseline,
                         candidate=args.candidate,
                         base_url=args.base_url,
@@ -271,7 +463,7 @@ def main(argv=None):
             emit(summarize(read_jsonl(args.run)))
             return 0
         key = os.environ.get(args.api_key_env)
-        if not key:
+        if not args.no_auth and not key:
             raise PrismError("Prism API key environment variable is unset")
         if args.out.exists():
             raise PrismError("evaluation output already exists")
@@ -279,7 +471,7 @@ def main(argv=None):
             evaluate(
                 read_jsonl(args.cases),
                 base_url=args.base_url,
-                api_key=key,
+                api_key=key or "",
                 baseline=args.baseline,
                 candidate=args.candidate,
                 output_tokens=args.output_tokens,
@@ -318,6 +510,8 @@ def raise_if_recursive_override(config, models, host, port):
         config.server.port = port
     local = {"localhost", "127.0.0.1", "::1", "0.0.0.0", "::"}
     for model in models.values():
+        if not model.base_url:
+            continue
         url = urlsplit(model.base_url)
         if (
             url.hostname == config.server.host

@@ -1,0 +1,410 @@
+[
+  {
+    "model": "prism-vision-llm",
+    "passed": false,
+    "status": 502,
+    "expected": [
+      "yellow",
+      "blue",
+      "orange",
+      "red"
+    ],
+    "response": {
+      "error": {
+        "message": "backend rejected or failed the request (HTTP 502)",
+        "type": "server_error",
+        "code": "upstream_error",
+        "param": null
+      }
+    },
+    "trace": {
+      "request_id": "prism-993665982540430b8673c3e416b2f7bc",
+      "model": "prism-vision-llm",
+      "strategy": "vision_synthesis",
+      "policy_revision": "policies-v3",
+      "accounting": "prism-utf8-v1",
+      "created": 1791161629,
+      "sources": [
+        {
+          "source_id": "msg-0-part-0",
+          "sha256": "309e802d10151ef63ce847eb6a872263911ffc01e3b2e189ad1ba1d33e79cc40",
+          "bytes": 238,
+          "role": "user",
+          "trust_scope": "caller_content"
+        },
+        {
+          "source_id": "msg-0-part-1",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "role": "user",
+          "trust_scope": "caller_content"
+        }
+      ],
+      "coverage": {},
+      "stop_reason": "upstream_error",
+      "rules_strategy": "vision_synthesis",
+      "eligible_policies": [
+        "vision_synthesis"
+      ],
+      "ineligible_policies": {
+        "direct": "unsupported_feature"
+      },
+      "policy_call_bounds": {
+        "vision_synthesis": 2
+      },
+      "decision": {
+        "mode": "route",
+        "disposition": "rules_only",
+        "reason": "single_eligible_policy",
+        "proposal": "vision_synthesis"
+      },
+      "plan": [
+        {
+          "id": "vision",
+          "operator": "inspect_images",
+          "dependencies": []
+        },
+        {
+          "id": "synthesis",
+          "operator": "synthesize",
+          "dependencies": [
+            "vision"
+          ]
+        }
+      ],
+      "elapsed_ms": 213.65108399186283,
+      "execution_usage": {
+        "consumed_or_conservatively_charged": {
+          "calls": 1,
+          "input_tokens": 5646,
+          "output_tokens": 4096,
+          "cost_usd": 0.0
+        },
+        "calls": [
+          {
+            "node_id": "vision",
+            "model_id": "nemotron-nano-reasoning",
+            "status": "failed",
+            "provider_usage": null,
+            "usage_status": "unknown",
+            "reserved_input_tokens": 5646,
+            "reserved_output_tokens": 4096,
+            "cost_upper_estimate_usd": 0.0,
+            "elapsed_ms": 213.24179199291393,
+            "started_ms": 0.3951250109821558,
+            "finished_ms": 213.6367920320481,
+            "cancellation_requested": false,
+            "remote_cancellation_confirmed": null,
+            "error_code": "upstream_error",
+            "upstream_status": 502
+          }
+        ],
+        "outstanding_nodes": [],
+        "cost_status": "upper_estimate"
+      }
+    }
+  },
+  {
+    "model": "prism-vision-reasoning",
+    "passed": true,
+    "status": 200,
+    "expected": [
+      "yellow",
+      "green",
+      "purple",
+      "white"
+    ],
+    "response": {
+      "id": "chatcmpl-prism-630574a3af1b46d5bb4616d828c83b4a",
+      "object": "chat.completion",
+      "created": 1791161629,
+      "model": "prism-vision-reasoning",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "content": "yellow, green, purple, white",
+            "role": "assistant"
+          },
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 936,
+        "completion_tokens": 28,
+        "total_tokens": 964
+      }
+    },
+    "trace": {
+      "request_id": "prism-630574a3af1b46d5bb4616d828c83b4a",
+      "model": "prism-vision-reasoning",
+      "strategy": "vision_synthesis",
+      "policy_revision": "policies-v3",
+      "accounting": "prism-utf8-v1",
+      "created": 1791161629,
+      "sources": [
+        {
+          "source_id": "msg-0-part-0",
+          "sha256": "309e802d10151ef63ce847eb6a872263911ffc01e3b2e189ad1ba1d33e79cc40",
+          "bytes": 238,
+          "role": "user",
+          "trust_scope": "caller_content"
+        },
+        {
+          "source_id": "msg-0-part-1",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "role": "user",
+          "trust_scope": "caller_content"
+        }
+      ],
+      "coverage": {
+        "scope": "visual_observations"
+      },
+      "stop_reason": "complete",
+      "rules_strategy": "vision_synthesis",
+      "eligible_policies": [
+        "vision_synthesis"
+      ],
+      "ineligible_policies": {
+        "direct": "unsupported_feature"
+      },
+      "policy_call_bounds": {
+        "vision_synthesis": 2
+      },
+      "decision": {
+        "mode": "route",
+        "disposition": "rules_only",
+        "reason": "single_eligible_policy",
+        "proposal": "vision_synthesis"
+      },
+      "plan": [
+        {
+          "id": "vision",
+          "operator": "inspect_images",
+          "dependencies": []
+        },
+        {
+          "id": "synthesis",
+          "operator": "synthesize",
+          "dependencies": [
+            "vision"
+          ]
+        }
+      ],
+      "elapsed_ms": 6848.443249997217,
+      "execution_usage": {
+        "consumed_or_conservatively_charged": {
+          "calls": 2,
+          "input_tokens": 559,
+          "output_tokens": 371,
+          "cost_usd": 0.0
+        },
+        "calls": [
+          {
+            "node_id": "vision",
+            "model_id": "nemotron-nano-reasoning",
+            "status": "complete",
+            "provider_usage": {
+              "prompt_tokens": 394,
+              "completion_tokens": 250,
+              "total_tokens": 644,
+              "cost": 0,
+              "is_byok": false,
+              "prompt_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": 0,
+                "audio_tokens": 0,
+                "video_tokens": 0
+              },
+              "cost_details": {
+                "upstream_inference_cost": 0,
+                "upstream_inference_prompt_cost": 0,
+                "upstream_inference_completions_cost": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 255,
+                "image_tokens": 0,
+                "audio_tokens": 0
+              }
+            },
+            "usage_status": "reported",
+            "reserved_input_tokens": 5606,
+            "reserved_output_tokens": 4096,
+            "cost_upper_estimate_usd": 0.0,
+            "elapsed_ms": 5891.68487500865,
+            "started_ms": 0.3723340341821313,
+            "finished_ms": 5892.056624987163,
+            "cancellation_requested": false,
+            "remote_cancellation_confirmed": null,
+            "finish_reason": "stop"
+          },
+          {
+            "node_id": "synthesis",
+            "model_id": "nemotron-super-reasoning",
+            "status": "complete",
+            "provider_usage": {
+              "prompt_tokens": 165,
+              "completion_tokens": 121,
+              "total_tokens": 286,
+              "cost": 0,
+              "is_byok": false,
+              "prompt_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": 0,
+                "audio_tokens": 0,
+                "video_tokens": 0
+              },
+              "cost_details": {
+                "upstream_inference_cost": 0,
+                "upstream_inference_prompt_cost": 0,
+                "upstream_inference_completions_cost": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 111,
+                "image_tokens": 0,
+                "audio_tokens": 0
+              }
+            },
+            "usage_status": "reported",
+            "reserved_input_tokens": 17367,
+            "reserved_output_tokens": 4096,
+            "cost_upper_estimate_usd": 0.0,
+            "elapsed_ms": 956.206375034526,
+            "started_ms": 5892.189999984112,
+            "finished_ms": 6848.362500022631,
+            "cancellation_requested": false,
+            "remote_cancellation_confirmed": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "outstanding_nodes": [],
+        "cost_status": "upper_estimate"
+      }
+    }
+  },
+  {
+    "model": "prism-balanced",
+    "check": "JSON uses Super",
+    "passed": true,
+    "status": 200,
+    "response": {
+      "id": "chatcmpl-prism-9e8a1773678a4bc58ed704505e0a7128",
+      "object": "chat.completion",
+      "created": 1791161636,
+      "model": "prism-balanced",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "content": "{\"ok\": true}",
+            "role": "assistant"
+          },
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 285,
+        "completion_tokens": 12,
+        "total_tokens": 297
+      }
+    },
+    "trace": {
+      "request_id": "prism-9e8a1773678a4bc58ed704505e0a7128",
+      "model": "prism-balanced",
+      "strategy": "direct",
+      "policy_revision": "policies-v3",
+      "accounting": "prism-utf8-v1",
+      "created": 1791161636,
+      "sources": [
+        {
+          "source_id": "msg-0-part-0",
+          "sha256": "ab96a92639e2ab429e1863bb864534a8776c131912313d8ff9ad00a2ceaaeb62",
+          "bytes": 27,
+          "role": "user",
+          "trust_scope": "caller_content"
+        }
+      ],
+      "coverage": {},
+      "stop_reason": "complete",
+      "rules_strategy": "direct",
+      "eligible_policies": [
+        "direct"
+      ],
+      "ineligible_policies": {},
+      "policy_call_bounds": {
+        "direct": 1
+      },
+      "decision": {
+        "mode": "route",
+        "disposition": "rules_only",
+        "reason": "single_eligible_policy",
+        "proposal": "direct"
+      },
+      "plan": [
+        {
+          "id": "direct",
+          "operator": "generate",
+          "dependencies": []
+        }
+      ],
+      "elapsed_ms": 570.3417499898933,
+      "execution_usage": {
+        "consumed_or_conservatively_charged": {
+          "calls": 1,
+          "input_tokens": 25,
+          "output_tokens": 27,
+          "cost_usd": 0.0
+        },
+        "calls": [
+          {
+            "node_id": "direct",
+            "model_id": "nemotron-super-reasoning",
+            "status": "complete",
+            "provider_usage": {
+              "prompt_tokens": 25,
+              "completion_tokens": 27,
+              "total_tokens": 52,
+              "cost": 0,
+              "is_byok": false,
+              "prompt_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": 0,
+                "audio_tokens": 0,
+                "video_tokens": 0
+              },
+              "cost_details": {
+                "upstream_inference_cost": 0,
+                "upstream_inference_prompt_cost": 0,
+                "upstream_inference_completions_cost": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 20,
+                "image_tokens": 0,
+                "audio_tokens": 0
+              }
+            },
+            "usage_status": "reported",
+            "reserved_input_tokens": 442,
+            "reserved_output_tokens": 4096,
+            "cost_upper_estimate_usd": 0.0,
+            "elapsed_ms": 569.6197079960257,
+            "started_ms": 0.3219999489374459,
+            "finished_ms": 569.9470829567872,
+            "cancellation_requested": false,
+            "remote_cancellation_confirmed": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "outstanding_nodes": [],
+        "cost_status": "upper_estimate"
+      }
+    }
+  },
+  {
+    "model": "nemotron-nano-reasoning",
+    "check": "JSON rejected before dispatch",
+    "passed": true,
+    "status": 400
+  }
+]

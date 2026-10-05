@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mirrorneuron-prism"
-version = "0.2.0"
-description = "Standalone, bounded, source-preserving OpenAI-compatible LLM proxy"
+version = "0.3.0"
+description = "OpenAI-compatible proxy for bounded text, vision, and reasoning model workflows"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name = "Prism contributors"}]
-keywords = ["llm", "proxy", "openai", "long-context", "inference", "laya"]
+keywords = ["llm", "proxy", "openai", "openrouter", "vision", "long-context", "inference", "laya"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -28,7 +28,10 @@ dependencies = [
   "httpx>=0.27,<1",
   "pydantic>=2,<3",
   "jsonschema>=4,<5",
+  "litellm>=1.101.0,<2",
   "laya>=0.3.23,<0.4",
+  "rich>=13.9,<16",
+  "rich-argparse>=1.7,<2",
 ]
 
 [project.urls]
@@ -42,6 +45,7 @@ dev = [
   "twine",
   "pytest",
   "pytest-asyncio",
+  "pytest-cov>=6,<8",
   "ruff",
   "mypy",
   "httpx",
@@ -57,7 +61,7 @@ core-metadata-version = "2.4"
 
 [tool.hatch.build.targets.sdist]
 core-metadata-version = "2.4"
-include = ["/src", "/tests", "/examples", "/models", "/prism.json", "/README.md", "/LICENSE", "/pyproject.toml", "/docs", "/prism_standalone_proxy_design.md"]
+include = ["/src", "/tests", "/examples", "/models", "/prism.json", "/prism-openrouter.json", "/Dockerfile", "/.dockerignore", "/compose.yaml", "/README.md", "/CHANGELOG.md", "/LICENSE", "/pyproject.toml", "/docs", "/prism_standalone_proxy_design.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -67,6 +71,13 @@ addopts = "-m 'not integration'"
 
 [tool.ruff]
 target-version = "py311"
+
+[tool.coverage.run]
+source = ["prism"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I", "UP"]
